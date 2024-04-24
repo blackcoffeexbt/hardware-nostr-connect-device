@@ -1,0 +1,37 @@
+// ****************************************************************************
+// This file is used to store the configuration of the Remote Signer
+// ****************************************************************************
+
+// Use these pins for the standard lilygo s3 board without the button expansion board
+#define PIN_BUTTON_1 0
+#define PIN_BUTTON_2 14
+#define PIN_BUTTON_3 13
+#define PIN_BUTTON_4 12
+
+// Use these pins for the lilygo s3 board with the button expansion board
+// #define PIN_BUTTON_1 11
+// #define PIN_BUTTON_2 10
+// #define PIN_BUTTON_3 13
+// #define PIN_BUTTON_4 12
+
+// ****************************************************************************
+// WiFi Configuration
+// ****************************************************************************
+const char *ssid = "<SSID>";
+const char *password = "<PASSWORD>";
+
+// ****************************************************************************
+// Nostr Configuration
+// ****************************************************************************
+// The private key hex that this device is managing
+const char *nsecHex = "<PRIVATE_KEY_HEX>";
+// The public key hex of the above
+const char *npubHex = "<PUBLIC_KEY_HEX>";
+
+// The relay that this device will listen on
+const char *nsecbunkerRelay = "relay.nsecbunker.com";
+// A 64 byte hex secret key that clients can use to bypass a manual Accept/Reject
+const char *secretKey = "<SECREY_KEY_HEX>"; // 
+
+// The admin public key hex used for device configuration
+const char *adminNpubHex = "<ADMIN_PUBLIC_KEY_HEX>";

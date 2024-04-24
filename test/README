@@ -1,0 +1,3 @@
+## Run tests on cli by cd to tests dir then running:
+
+`pio test -vvv -e LilyGo-T-Display`
