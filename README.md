@@ -15,4 +15,4 @@ Please review, improve and PR.
 1. Clone the repo
 1. Copy src/config.h.example to src/config.h and update the relevant vars
 1. Flash
-1. Test with a client that supports NIP46. nostrudel.ninja is a great client for testing this.
+1. Test with a client that supports NIP46. nostrudel.ninja is a great client for testing this. Press and hold button 1 to get a pairing QR code.
