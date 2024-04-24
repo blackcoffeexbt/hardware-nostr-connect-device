@@ -336,7 +336,7 @@ size_t getFreeMemoryCapacity(String message)
 // handleConnect function with DynamicJsonDocument passed by reference
 void handleConnect(DynamicJsonDocument &doc, String &requestingNpub)
 {
-  showMessage("Request to connect", "received");
+  // showMessage("Request to connect", "received");
 
   String requestId = doc["id"];
 
@@ -356,7 +356,7 @@ void handleConnect(DynamicJsonDocument &doc, String &requestingNpub)
 
   webSocket.sendTXT(dm);
 
-  showMessage("Client requested connection", "Acknowledged.");
+  // showMessage("Client requested connection", "Acknowledged.");
 }
 
 DocumentData parseDocumentData(const String &paramString)
@@ -547,7 +547,7 @@ void handleGetPublicKey(DynamicJsonDocument &doc, const char *requestingNpub)
  */
 void handleNip04Encrypt(DynamicJsonDocument &doc, const char *requestingNpub)
 {
-  showMessage("Request to encrypt NIP04", "received");
+  // showMessage("Request to encrypt NIP04", "received");
   if (!isClientNpubAuthorised(requestingNpub))
   {
     return;
@@ -565,7 +565,7 @@ void handleNip04Encrypt(DynamicJsonDocument &doc, const char *requestingNpub)
 
 void handleNip04Decrypt(DynamicJsonDocument &doc, const char *requestingNpub)
 {
-  showMessage("Request to decrypt NIP04", "received");
+  // showMessage("Request to decrypt NIP04", "received");
   if (!isClientNpubAuthorised(requestingNpub))
   {
     return;
@@ -597,7 +597,7 @@ void handleNip04Decrypt(DynamicJsonDocument &doc, const char *requestingNpub)
   String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + decryptedMessage + "\"}";
   String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
   webSocket.sendTXT(dm);
-  showMessage("Decrypted:", decryptedMessage);
+  // showMessage("Decrypted:", decryptedMessage);
 }
 
 void handleSigningRequestEvent(uint8_t *data)
@@ -647,7 +647,6 @@ void handleSigningRequestEvent(uint8_t *data)
   }
   else if (method == "nip04_decrypt")
   {
-    showMessage("Request to decrypt NIP04", "received");
     handleNip04Decrypt(eventDoc, requestingPubKey.c_str());
   }
   else
@@ -908,7 +907,6 @@ void setup()
       return;
     }
   }
-  showMessage("Connected to WiFi", "");
 
   timeClient.begin();
 
