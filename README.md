@@ -2,9 +2,12 @@
 
 # THIS IS AN ALPHA PROJECT
 
-The code quality is mediocre and needs a massive refactor. Pls help if you have time and can. Better tests, refactoring, would be nice.
+The code quality is mediocre at best due to weeks of layers of "figuring it out" and needs a massive refactor. Pls help if you have time and can. Better tests, refactoring, would be nice.
+
 
 The project currently supports only the Lilygo T-Display S3 board and is in alpha state.
+
+The Lilygo T-Display S3 can be bought for around 9GBP / 11 EUR / 11 USD on AliExpress - https://www.aliexpress.com/item/1005004898948906.html
 
 You need to be able to use platformio to be able to test this.
 
