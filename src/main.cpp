@@ -5,7 +5,7 @@
 #include <math.h>
 #include <ArduinoJson.h>
 #include <NostrEvent.h>
-#include <WebSocketsClient.h>
+#include <ArduinoWebsockets.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
 #include <TFT_eSPI.h>
@@ -29,8 +29,9 @@ OneButton button1(PIN_BUTTON_1, true);
 OneButton button2(PIN_BUTTON_2, true);
 OneButton button3(PIN_BUTTON_3, true);
 
-WebSocketsClient webSocket;
-WebSocketsClient webSocketTemp;
+using namespace websockets;
+
+WebsocketsClient client;
 
 unsigned long unixTimestamp;
 
@@ -60,8 +61,8 @@ struct DocumentData
 
 /**
  * @brief Get the Battery Voltage in Volts
- * 
- * @return float 
+ *
+ * @return float
  */
 float getBatteryVoltage()
 {
@@ -75,12 +76,15 @@ float getBatteryVoltage()
 }
 
 // function to calculate the percentage of battery remaining based on using a 1s lipo batteru
-uint8_t getBatteryPercentage() {
+uint8_t getBatteryPercentage()
+{
   float voltage = getBatteryVoltage();
-  if(voltage > 4.3) {
+  if (voltage > 4.3)
+  {
     return 100;
   }
-  if(voltage < 3.3) {
+  if (voltage < 3.3)
+  {
     return 0;
   }
   return (voltage - 3.3) * 100 / (4.3 - 3.3);
@@ -127,12 +131,7 @@ void cleanMessage(String &message)
   message.trim();
   message.replace("\n", ""); // Remove newline characters
   message.replace("\r", ""); // Remove carriage return characters
-  // char asciiChars[] = {1, 5, 6, 7, 8, 4, 16, 2, 15, 3};
-  // remove any of these characters from the message
-  // for (int i = 0; i < sizeof(asciiChars); i++)
-  // {
-  //   message.replace(String(asciiChars[i]), "");
-  // }
+
   // remove any ascii characters < 32 (non-printable chars)
   for (int i = 0; i < message.length(); i++)
   {
@@ -336,7 +335,7 @@ size_t getFreeMemoryCapacity(String message)
 // handleConnect function with DynamicJsonDocument passed by reference
 void handleConnect(DynamicJsonDocument &doc, String &requestingNpub)
 {
-  // showMessage("Request to connect", "received");
+  showMessage("Request to connect", "received");
 
   String requestId = doc["id"];
 
@@ -354,9 +353,9 @@ void handleConnect(DynamicJsonDocument &doc, String &requestingNpub)
   String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"ack\"}";
   String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub.c_str(), 24133, unixTimestamp, responseMsg);
 
-  webSocket.sendTXT(dm);
+  client.send(dm);
 
-  // showMessage("Client requested connection", "Acknowledged.");
+  showMessage("Client requested connection", "Acknowledged.");
 }
 
 DocumentData parseDocumentData(const String &paramString)
@@ -436,52 +435,13 @@ void handleSignEvent(DynamicJsonDocument &doc, char const *requestingPubKey)
   utilities::stopTimer("nostr::getEncryptedDm");
   free(responseMsgChar);
   // _logToSerialWithTitle("dm is: ", dm);
-  webSocket.sendTXT(dm);
-  utilities::stopTimer("webSocket.sendTXT");
+  client.send(dm);
+  utilities::stopTimer("client.send");
   // define an array of messages to add to the screen
   const char *messages[] = {"Nice!", "GM", "#coffeechain", "Pura vida", "Zap zap", "Bloomer not Doomer", "MICHAEL SAYLOR KICKED MY DOG."};
   // showMessage("Signed event sent.", messages[random(0, 7)]);
   utilities::stopTimer("handleSignEvent");
   delay(500);
-}
-
-void signerStartedConnectedEvent(WStype_t type, uint8_t *payload, size_t length)
-{
-  switch (type)
-  {
-  case WStype_DISCONNECTED:
-    Serial.printf("[WSc] Disconnected!\n");
-    showMessage("Disconnected from relay.damus.io relay", "Reconnecting..");
-    webSocketTemp.beginSSL("relay.damus.io", 443);
-    webSocketTemp.onEvent(signerStartedConnectedEvent);
-    break;
-  case WStype_CONNECTED:
-  {
-    showMessage("Connected to relay.damus.io relay", "Sending connected message");
-    Serial.printf("[WSc] Connected to %s\n", nsecbunkerRelay);
-    String message = "Signer started";
-    String dm = nostr::getEncryptedDm(nsecHex, npubHex, npubHex, 4, unixTimestamp, message);
-    webSocketTemp.sendTXT(dm);
-    break;
-  }
-  case WStype_TEXT:
-  {
-    Serial.printf("[WSc] got WS TEXT\n");
-    break;
-  }
-  case WStype_BIN:
-    Serial.printf("[WSc] get binary length: %u\n", length);
-    break;
-  }
-}
-
-void sendSignerStartedMsg()
-{
-  // create a new websocket connectio nto nos.lol and send the dm when connected
-  showMessage("Connecting to relay", "Sending connected message");
-  webSocketTemp.beginSSL("relay.damus.io", 443);
-  webSocketTemp.onEvent(signerStartedConnectedEvent);
-  webSocketTemp.setReconnectInterval(5000);
 }
 
 /**
@@ -499,7 +459,7 @@ void handlePing(DynamicJsonDocument &doc, const char *requestingNpub)
   String requestId = doc["id"];
   String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"pong\"}";
   String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
-  webSocket.sendTXT(dm);
+  client.send(dm);
 }
 
 /**
@@ -519,7 +479,7 @@ void handleGetRelays(DynamicJsonDocument &doc, const char *requestingNpub)
   String relays = "{\"" + String(nsecbunkerRelay) + "\": {\"read\": true, \"write\": true}}";
   String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":" + relays + "}";
   String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
-  webSocket.sendTXT(dm);
+  client.send(dm);
 }
 
 /**
@@ -537,7 +497,7 @@ void handleGetPublicKey(DynamicJsonDocument &doc, const char *requestingNpub)
   String requestId = doc["id"];
   String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + npubHex + "\"}";
   String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
-  webSocket.sendTXT(dm);
+  client.send(dm);
 }
 
 /**
@@ -560,7 +520,7 @@ void handleNip04Encrypt(DynamicJsonDocument &doc, const char *requestingNpub)
   String requestId = doc["id"];
   String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + encryptedMessage + "\"}";
   String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
-  webSocket.sendTXT(dm);
+  client.send(dm);
 }
 
 void handleNip04Decrypt(DynamicJsonDocument &doc, const char *requestingNpub)
@@ -596,17 +556,17 @@ void handleNip04Decrypt(DynamicJsonDocument &doc, const char *requestingNpub)
   // log decryptedMessage and show any ascii characters
   String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + decryptedMessage + "\"}";
   String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
-  webSocket.sendTXT(dm);
+  client.send(dm);
   // showMessage("Decrypted:", decryptedMessage);
 }
 
-void handleSigningRequestEvent(uint8_t *data)
+void handleSigningRequestEvent(String &data)
 {
   utilities::startTimer("handleSigningRequestEvent");
-  String requestingPubKey = nostr::getSenderPubKeyHex(String((char *)data));
+  String requestingPubKey = nostr::getSenderPubKeyHex(data);
   // utilities::stopTimer("nostr::getSenderPubKeyHex");
 
-  String message = nostr::nip04Decrypt(nsecHex, String((char *)data));
+  String message = nostr::nip04Decrypt(nsecHex, data);
   // utilities::stopTimer("nostr::nip04Decrypt");
   // _logToSerialWithTitle("Decrypted message is: ", message);
   // _logToSerialWithTitle("message is: ", message);
@@ -647,13 +607,14 @@ void handleSigningRequestEvent(uint8_t *data)
   }
   else if (method == "nip04_decrypt")
   {
+    // showMessage("Request to decrypt NIP04", "received");
     handleNip04Decrypt(eventDoc, requestingPubKey.c_str());
   }
   else
   {
     Serial.println("default");
     // print the data
-    Serial.println("data is: " + String((char *)data));
+    Serial.println("data is: " + data);
   }
   utilities::stopTimer("handleSigningRequestEvent");
 }
@@ -671,9 +632,9 @@ bool isJson(String str)
   return true;
 }
 
-void handleConfigRequestEvent(uint8_t *data)
+void handleConfigRequestEvent(String &data)
 {
-  String message = nostr::nip04Decrypt(nsecHex, String((char *)data));
+  String message = nostr::nip04Decrypt(nsecHex, data);
   cleanMessage(message);
   // message can be "get_config" or some JSON. if it's json then it's a config update
   if (message == "get_config")
@@ -681,7 +642,7 @@ void handleConfigRequestEvent(uint8_t *data)
     String configJson = getSerialisedConfigDoc();
     showMessage("Configuration request", "received");
     String configData = nostr::getEncryptedDm(nsecHex, npubHex, adminNpubHex, 24134, unixTimestamp, configJson);
-    webSocket.sendTXT(configData);
+    client.send(configData);
     showMessage("Configuration sent to relay", "");
   }
   else
@@ -701,7 +662,7 @@ void handleConfigRequestEvent(uint8_t *data)
       String configJson = getSerialisedConfigDoc();
       String configData = nostr::getEncryptedDm(nsecHex, npubHex, adminNpubHex, 24134, unixTimestamp, configJson);
       Serial.println("Config data is: " + configData);
-      webSocket.sendTXT(configData);
+      client.send(configData);
       showMessage("Updated config sent", "");
     }
     catch (const std::exception &e)
@@ -711,61 +672,59 @@ void handleConfigRequestEvent(uint8_t *data)
   }
 }
 
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
+void subscribeToNip46Events()
 {
+  // watch for 24133 kind events
+  String npubHexString(npubHex);
+  char *output = new char[64];
+  getRandom64ByteHex(output);
+  String req = "[\"REQ\", \"" + String(output) + "\",{\"kinds\":[24133],\"#p\":[\"" + npubHexString + "\"],\"limit\":0}";
+  req += ",{\"kinds\":[24134],\"#p\":[\"" + npubHexString + "\"],\"authors\":[\"" + String(adminNpubHex) + "\"],\"limit\":0}";
+  req += "]";
+  Serial.println("req is: " + req);
+  client.send(req);
+  turnOffDisplay();
+}
+
+void onMessageCallback(WebsocketsMessage message)
+{
+  Serial.print("Got Message: ");
+  Serial.println(message.data());
+  String data = (String)message.data();
+
   // _logToSerialWithTitle("Received data", String((char *)data));
-  // if data includes EVENT and 24133 kind, decrypt it
-  if (strstr((char *)data, "EVENT") && strstr((char *)data, "24133"))
+  if (data.indexOf("EVENT") != -1 && data.indexOf("\"kind\":24133,") != -1)
   {
     handleSigningRequestEvent(data);
   }
-  // if data includes EVENT and 4 kind, decrypt it
-  else if (strstr((char *)data, "EVENT") && strstr((char *)data, "4"))
+  // if data includes EVENT and 24134 kind, decrypt it
+  if (data.indexOf("EVENT") != -1 && data.indexOf("\"kind\":24134,") != -1)
   {
     handleConfigRequestEvent(data);
   }
+  turnOffDisplay();
 }
 
-// connect to web socket server. set up callbacks, on connect, on disconnect, on message
-void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
+void onEventsCallback(WebsocketsEvent event, String data)
 {
-  switch (type)
+  if (event == WebsocketsEvent::ConnectionOpened)
   {
-  case WStype_DISCONNECTED:
-    Serial.printf("[WSc] Disconnected!\n");
-    showMessage("Disconnected from relay", "Reconnecting..");
-    webSocket.beginSSL(nsecbunkerRelay, 443);
-    webSocket.onEvent(webSocketEvent);
-    break;
-  case WStype_CONNECTED:
-  {
-    Serial.printf("[WSc] Connected to %s\n", nsecbunkerRelay);
-    showMessage("Connected to " + String(nsecbunkerRelay), "Awaiting requests.");
-    // watch for 24133 kind events
-    String npubHexString(npubHex);
-    char *output = new char[64];
-    getRandom64ByteHex(output);
-    String req = "[\"REQ\", \"" + String(output) + "\",{\"kinds\":[24133],\"#p\":[\"" + npubHexString + "\"],\"limit\":0}";
-    req += ",{\"kinds\":[24134],\"#p\":[\"" + npubHexString + "\"],\"authors\":[\"" + String(adminNpubHex) + "\"],\"limit\":0}";
-    req += "]";
-    Serial.println("req is: " + req);
-    webSocket.sendTXT(req);
-    // delay(1000);
-    turnOffDisplay();
-    break;
+    Serial.println("Connnection Opened");
+    Serial.println(data);
+    subscribeToNip46Events();
   }
-  case WStype_TEXT:
+  else if (event == WebsocketsEvent::ConnectionClosed)
   {
-    Serial.printf("[WSc] Got WS TEXT\n");
-    Serial.println("Payload is: " + String((char *)payload));
-    handleWebSocketMessage(NULL, payload, length);
-    // delay(1000);
-    turnOffDisplay();
-    break;
+    Serial.println("Connnection Closed");
+    client.connect(nsecbunkerRelay);
   }
-  case WStype_BIN:
-    Serial.printf("[WSc] get binary length: %u\n", length);
-    break;
+  else if (event == WebsocketsEvent::GotPing)
+  {
+    // Serial.println("Got a Ping!");
+  }
+  else if (event == WebsocketsEvent::GotPong)
+  {
+    // Serial.println("Got a Pong!");
   }
 }
 
@@ -907,27 +866,42 @@ void setup()
       return;
     }
   }
+  showMessage("Connected to WiFi", "");
 
   timeClient.begin();
 
-  // sendSignerStartedMsg();
-
   showMessage("Connecting to", String(nsecbunkerRelay));
-  webSocket.beginSSL(nsecbunkerRelay, 443);
-  webSocket.onEvent(webSocketEvent);
-  webSocket.setReconnectInterval(5000);
+
+  client.onMessage(onMessageCallback);
+
+  client.onEvent(onEventsCallback);
+
+  client.setCACert(echo_org_ssl_ca_cert);
+  bool connected = client.connect(nsecbunkerRelay);
+  if (connected)
+  {
+    Serial.println("Connected to relay");
+  }
+  else
+  {
+    Serial.println("Connection to relay failed");
+  }
+  // client.send("Hello Server");
 }
 
 unsigned long lastPing = 0;
 void loop()
 {
   // delay(100);
-  webSocket.loop();
+  if (client.available())
+  {
+    client.poll();
+  }
   // ping the relay every 10 seconds
   if (millis() - lastPing > 10000)
   {
     lastPing = millis();
-    webSocket.sendPing();
+    client.ping();
   }
 
   timeClient.update();
