@@ -335,7 +335,7 @@ size_t getFreeMemoryCapacity(String message)
 // handleConnect function with DynamicJsonDocument passed by reference
 void handleConnect(DynamicJsonDocument &doc, String &requestingNpub)
 {
-  showMessage("Request to connect", "received");
+  // showMessage("Request to connect", "received");
 
   String requestId = doc["id"];
 
