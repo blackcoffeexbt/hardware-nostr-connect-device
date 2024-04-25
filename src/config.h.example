@@ -23,7 +23,7 @@ const char *password = "<PASSWORD>";
 // ****************************************************************************
 // Relay Configuration
 // ****************************************************************************
-const char *nsecbunkerRelay = "relay.nsecbunker.com";
+const char *nsecbunkerRelay = "wss://relay.nsecbunker.com";
 const char echo_org_ssl_ca_cert[] PROGMEM = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw\n" \
