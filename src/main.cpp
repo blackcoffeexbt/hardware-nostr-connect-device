@@ -60,8 +60,8 @@ struct DocumentData
 
 /**
  * @brief Get the Battery Voltage in Volts
- * 
- * @return float 
+ *
+ * @return float
  */
 float getBatteryVoltage()
 {
@@ -75,12 +75,15 @@ float getBatteryVoltage()
 }
 
 // function to calculate the percentage of battery remaining based on using a 1s lipo batteru
-uint8_t getBatteryPercentage() {
+uint8_t getBatteryPercentage()
+{
   float voltage = getBatteryVoltage();
-  if(voltage > 4.3) {
+  if (voltage > 4.3)
+  {
     return 100;
   }
-  if(voltage < 3.3) {
+  if (voltage < 3.3)
+  {
     return 0;
   }
   return (voltage - 3.3) * 100 / (4.3 - 3.3);
@@ -158,7 +161,7 @@ void promptUser(String question, OneButton &button1, OneButton &button2, String 
 {
   buttonResponse = 0;
   tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setTextColor(TFT_PURPLE, TFT_BLACK);
   tft.setTextSize(2);
   tft.setCursor(5, 5);
   // define a rectangle to display the question
@@ -193,7 +196,7 @@ void showMessage(String message, String additional)
 {
   turnOnDisplay();
   tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setTextColor(TFT_PURPLE, TFT_BLACK);
   tft.setTextSize(2);
   tft.setCursor(10, 30);
   tft.println(message);
@@ -390,6 +393,27 @@ DocumentData parseDocumentData(const String &paramString)
 
   // Constructing and returning the DocumentData object
   return DocumentData(tags, kind, content, timestamp);
+}
+
+void animateTyping(String message)
+{
+  turnOnDisplay();
+  // display vertical center and 10px left. animate 1 letter at a time
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_PURPLE, TFT_BLACK);
+  tft.setTextSize(3);
+  int16_t textHeight = tft.fontHeight();
+  tft.setCursor(10, (TFT_WIDTH - textHeight) / 2);
+  for (int i = 0; i < message.length(); i++)
+  {
+    tft.print(message[i]);
+    delay(100);
+  }
+}
+
+void showWelcomeScreen()
+{
+  animateTyping("POR VIDA!");
 }
 
 void handleSignEvent(DynamicJsonDocument &doc, char const *requestingPubKey)
@@ -878,8 +902,9 @@ void setup()
   tft.setRotation(3);
   tft.invertDisplay(true);
 
-  tft.fillScreen(TFT_WHITE);
-  tft.pushImage(TFT_HEIGHT / 2 - FACE_WIDTH / 2, TFT_WIDTH / 2 - FACE_HEIGHT / 2, FACE_WIDTH, FACE_HEIGHT, face, 0x066c);
+  // tft.fillScreen(TFT_WHITE);
+  // tft.pushImage(TFT_HEIGHT / 2 - FACE_WIDTH / 2, TFT_WIDTH / 2 - FACE_HEIGHT / 2, FACE_WIDTH, FACE_HEIGHT, face, 0x066c);
+  showWelcomeScreen();
   delay(1000);
 
   showMessage("Initialising", "Please wait...");
