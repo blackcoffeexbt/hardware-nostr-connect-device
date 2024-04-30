@@ -7,28 +7,31 @@ namespace nostr
     byte *encryptedMessageBin;
 
     unsigned long timer = 0;
-    void _startTimer(const char* timedEvent) {
+    void _startTimer(const char *timedEvent)
+    {
         timer = millis();
         // Serial.print("Starting timer for ");
         // Serial.println(timedEvent);
     }
 
-    void _stopTimer(const char* timedEvent) {
+    void _stopTimer(const char *timedEvent)
+    {
         unsigned long elapsedTime = millis() - timer;
-        // Serial.print(elapsedTime);
-        // Serial.print(" ms - ");
-        // Serial.println(timedEvent);
+        Serial.print(elapsedTime);
+        Serial.print(" ms - ");
+        Serial.println(timedEvent);
         timer = millis();
     }
 
-    void initMemorySpace(size_t nostrEventDocCapacity, size_t encryptedMessageBinSize) {
+    void initMemorySpace(size_t nostrEventDocCapacity, size_t encryptedMessageBinSize)
+    {
         nostrEventDoc = DynamicJsonDocument(nostrEventDocCapacity);
         encryptedMessageBin = (byte *)ps_malloc(encryptedMessageBinSize);
     }
 
     void _logToSerialWithTitle(String title, String message)
     {
-        // Serial.println(title + ": " + message);
+        Serial.println(title + ": " + message);
     }
 
     void _logOkWithHeapSize(const char *message)
@@ -120,20 +123,22 @@ namespace nostr
     String getContent(const String &serialisedJson)
     {
         DeserializationError error = deserializeJson(nostrEventDoc, serialisedJson);
-        if (error) {
-        Serial.print(F("deserializeJson() failed: "));
-        Serial.println(error.c_str());
-            }
+        if (error)
+        {
+            Serial.print(F("deserializeJson() failed: "));
+            Serial.println(error.c_str());
+        }
         return nostrEventDoc[2]["content"];
     }
 
     String getSenderPubKeyHex(const String &serialisedJson)
     {
         DeserializationError error = deserializeJson(nostrEventDoc, serialisedJson);
-        if (error) {
-        Serial.print(F("deserializeJson() failed: "));
-        Serial.println(error.c_str());
-            }
+        if (error)
+        {
+            Serial.print(F("deserializeJson() failed: "));
+            Serial.println(error.c_str());
+        }
         return nostrEventDoc[2]["pubkey"];
     }
 
@@ -145,7 +150,7 @@ namespace nostr
             Serial.print(F("deserializeJson() failed: "));
             Serial.println(error.c_str());
             return std::make_pair("", "");
-        }        
+        }
 
         // Extract the sender public key and content from the document
         String senderPubKeyHex = nostrEventDoc[2]["pubkey"];
@@ -173,7 +178,7 @@ namespace nostr
         }
 
         // Extracting encryptedMessage directly from content without using String for the intermediate steps
-        int encryptedMessageLength = ivIndex;                                   // Length of the encrypted message part
+        int encryptedMessageLength = ivIndex; // Length of the encrypted message part
         // char *encryptedMessage = (char *)ps_malloc(encryptedMessageLength + 1); // +1 for null-terminator
         const char *encryptedMessage = content.c_str(); // Use the content directly
         if (!encryptedMessage)
@@ -313,15 +318,22 @@ namespace nostr
         int padding_diff = msg.length() % 16 == 0 ? 16 : 16 - (msg.length() % 16);
 
         int byteSize = msg.length() + padding_diff;
-        byte messageBin[byteSize];
+        byte *messageBin = (byte *)ps_malloc(byteSize); // Allocate memory in PSRAM
+
+        if (messageBin == nullptr)
+        {
+            Serial.println("Failed to allocate PSRAM");
+            return "";
+        }
+
         stringToByteArray(msg.c_str(), padding_diff, messageBin);
 
         AES_ctx ctx;
         AES_init_ctx_iv(&ctx, key, iv);
 
-        AES_CBC_encrypt_buffer(&ctx, messageBin, sizeof(messageBin));
+        AES_CBC_encrypt_buffer(&ctx, messageBin, byteSize);
 
-        return toHex(messageBin, sizeof(messageBin));
+        return toHex(messageBin, byteSize);
     }
 
     /**
@@ -373,7 +385,12 @@ namespace nostr
 
         // divide the length of the hex string 2 to get the size of the byte array, since each byte consists of 2 hexadecimal characters.
         int encryptedMessageSize = encryptedMessageHex.length() / 2;
-        uint8_t encryptedMessage[encryptedMessageSize];
+        // Allocate memory in PSRAM for the encrypted message array
+        uint8_t *encryptedMessage = (uint8_t *)ps_malloc(encryptedMessageSize);
+        if (encryptedMessage == nullptr)
+        {
+            Serial.println("Failed to allocate PSRAM for encryptedMessage");
+        }
         fromHex(encryptedMessageHex, encryptedMessage, encryptedMessageSize);
         _stopTimer("getCipherText: get encryptedMessage fromHex");
 

@@ -88,7 +88,7 @@ uint8_t getBatteryPercentage() {
 
 void _logToSerialWithTitle(String title, String message)
 {
-  // Serial.println(title + ": " + message);
+  Serial.println(title + ": " + message);
 }
 
 bool isDisplayOff = false;
