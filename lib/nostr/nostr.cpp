@@ -465,12 +465,14 @@ namespace nostr
         int byteSize = 32;
         byte privateKeyBytes[byteSize];
         fromHex(privateKeyHex, privateKeyBytes, byteSize);
+        _stopTimer("get privateKeyBytes from hex");
         PrivateKey privateKey(privateKeyBytes);
+        _stopTimer("create privateKey object");
         // Generate the schnorr sig of the messageHash
         SchnorrSignature signature = privateKey.schnorr_sign(hash);
+        _stopTimer("generate schnorr sig");
         String signatureHex = String(signature);
         _logToSerialWithTitle("Schnorr sig is: ", signatureHex);
-        _stopTimer("generate schnorr sig");
 
         String serialisedEventData = nostr::getSerialisedEncryptedDmObject(pubKeyHex, recipientPubKeyHex, kind, msgHash, timestamp, encryptedMessageBase64, signatureHex);
         _stopTimer("get serialised encrypted dm object");

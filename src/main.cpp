@@ -104,7 +104,7 @@ void turnOffDisplay()
   }
   tft.writecommand(ST7789_DISPOFF); // turn off lcd display
   digitalWrite(38, LOW);            // turn of lcd backlight
-  tft.fillScreen(TFT_BLACK);
+  tft.fillScreen(TFT_PURPLE);
   isDisplayOff = true;
 }
 
@@ -159,9 +159,10 @@ uint8_t buttonResponse = 0;
 
 void promptUser(String question, OneButton &button1, OneButton &button2, String button1Answer, String button2Answer)
 {
+  turnOnDisplay();
   buttonResponse = 0;
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_PURPLE, TFT_BLACK);
+  tft.fillScreen(TFT_PURPLE);
+  tft.setTextColor(TFT_WHITE, TFT_PURPLE);
   tft.setTextSize(2);
   tft.setCursor(5, 5);
   // define a rectangle to display the question
@@ -189,14 +190,14 @@ void promptUser(String question, OneButton &button1, OneButton &button2, String 
     button1.tick();
     button2.tick();
   }
-  tft.fillScreen(TFT_BLACK);
+  tft.fillScreen(TFT_PURPLE);
 }
 
 void showMessage(String message, String additional)
 {
   turnOnDisplay();
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_PURPLE, TFT_BLACK);
+  tft.fillScreen(TFT_PURPLE);
+  tft.setTextColor(TFT_WHITE, TFT_PURPLE);
   tft.setTextSize(2);
   tft.setCursor(10, 30);
   tft.println(message);
@@ -238,6 +239,7 @@ bool promptUserShouldAllowClientNpub(String requestingNpub)
     }
     requestingNpubSplit += requestingNpub[i];
   }
+  Serial.println("Requesting npub split: " + requestingNpubSplit);
   promptUser(requestingNpubSplit + "\nwants to connect", button1, button2, "Accept", "Reject");
   if (buttonResponse == 2)
   {
@@ -344,7 +346,7 @@ void handleConnect(DynamicJsonDocument &doc, String &requestingNpub)
   String requestId = doc["id"];
 
   String secret = doc["params"][1];
-  // Serial.println("secret from client is: " + secret);
+  Serial.println("secret from client is: " + secret);
 
   if (!checkClientIsAuthorised(requestingNpub.c_str(), secret.c_str()))
   {
@@ -399,9 +401,9 @@ void animateTyping(String message)
 {
   turnOnDisplay();
   // display vertical center and 10px left. animate 1 letter at a time
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_PURPLE, TFT_BLACK);
-  tft.setTextSize(3);
+  tft.fillScreen(TFT_PURPLE);
+  tft.setTextColor(TFT_WHITE, TFT_PURPLE);
+  tft.setTextSize(4);
   int16_t textHeight = tft.fontHeight();
   tft.setCursor(10, (TFT_WIDTH - textHeight) / 2);
   for (int i = 0; i < message.length(); i++)
@@ -413,7 +415,7 @@ void animateTyping(String message)
 
 void showWelcomeScreen()
 {
-  animateTyping("POR VIDA!");
+  animateTyping("PURA VIDA!");
 }
 
 void handleSignEvent(DynamicJsonDocument &doc, char const *requestingPubKey)
@@ -769,8 +771,8 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
     String npubHexString(npubHex);
     char *output = new char[64];
     getRandom64ByteHex(output);
-    String req = "[\"REQ\", \"" + String(output) + "\",{\"kinds\":[24133],\"#p\":[\"" + npubHexString + "\"],\"limit\":0}";
-    req += ",{\"kinds\":[24134],\"#p\":[\"" + npubHexString + "\"],\"authors\":[\"" + String(adminNpubHex) + "\"],\"limit\":0}";
+    String req = "[\"REQ\", \"" + String(output) + "\",{\"kinds\":[24133],\"#p\":[\"" + npubHexString + "\"],\"limit\":5}";
+    req += ",{\"kinds\":[24134],\"#p\":[\"" + npubHexString + "\"],\"authors\":[\"" + String(adminNpubHex) + "\"],\"limit\":5}";
     req += "]";
     Serial.println("req is: " + req);
     webSocket.sendTXT(req);
@@ -830,7 +832,7 @@ void showConnectionScreen()
     {
       if (qrcode_getModule(&qrcode, x, y))
       {
-        tft.fillRect(startX + x * pixelSize, startY + y * pixelSize, pixelSize, pixelSize, TFT_BLACK);
+        tft.fillRect(startX + x * pixelSize, startY + y * pixelSize, pixelSize, pixelSize, TFT_PURPLE);
       }
     }
   }
