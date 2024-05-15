@@ -771,8 +771,9 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
     String npubHexString(npubHex);
     char *output = new char[64];
     getRandom64ByteHex(output);
-    String req = "[\"REQ\", \"" + String(output) + "\",{\"kinds\":[24133],\"#p\":[\"" + npubHexString + "\"],\"limit\":5}";
-    req += ",{\"kinds\":[24134],\"#p\":[\"" + npubHexString + "\"],\"authors\":[\"" + String(adminNpubHex) + "\"],\"limit\":5}";
+
+    String req = "[\"REQ\", \"" + String(output) + "\",{\"kinds\":[24133],\"#p\":[\"" + npubHexString + "\"],\"limit\":0}";
+    req += ",{\"kinds\":[24134],\"#p\":[\"" + npubHexString + "\"],\"authors\":[\"" + String(adminNpubHex) + "\"],\"limit\":0}";
     req += "]";
     Serial.println("req is: " + req);
     webSocket.sendTXT(req);
@@ -880,7 +881,7 @@ void setupButtons()
 void setup()
 {
   delay(1000);
-  Serial.begin(115200);
+  // Serial.begin(115200);
   Serial.println("boot");
 
   // turn on display when on battery
