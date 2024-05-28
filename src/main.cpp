@@ -104,7 +104,7 @@ void turnOffDisplay()
   }
   tft.writecommand(ST7789_DISPOFF); // turn off lcd display
   digitalWrite(38, LOW);            // turn of lcd backlight
-  tft.fillScreen(TFT_PURPLE);
+  tft.fillScreen(TFT_WHITE);
   isDisplayOff = true;
 }
 
@@ -161,8 +161,8 @@ void promptUser(String question, OneButton &button1, OneButton &button2, String 
 {
   turnOnDisplay();
   buttonResponse = 0;
-  tft.fillScreen(TFT_PURPLE);
-  tft.setTextColor(TFT_WHITE, TFT_PURPLE);
+  tft.fillScreen(TFT_WHITE);
+  tft.setTextColor(TFT_RED, TFT_WHITE);
   tft.setTextSize(2);
   tft.setCursor(5, 5);
   // define a rectangle to display the question
@@ -190,14 +190,14 @@ void promptUser(String question, OneButton &button1, OneButton &button2, String 
     button1.tick();
     button2.tick();
   }
-  tft.fillScreen(TFT_PURPLE);
+  tft.fillScreen(TFT_WHITE);
 }
 
 void showMessage(String message, String additional)
 {
   turnOnDisplay();
-  tft.fillScreen(TFT_PURPLE);
-  tft.setTextColor(TFT_WHITE, TFT_PURPLE);
+  tft.fillScreen(TFT_WHITE);
+  tft.setTextColor(TFT_RED, TFT_WHITE);
   tft.setTextSize(2);
   tft.setCursor(10, 30);
   tft.println(message);
@@ -401,8 +401,8 @@ void animateTyping(String message)
 {
   turnOnDisplay();
   // display vertical center and 10px left. animate 1 letter at a time
-  tft.fillScreen(TFT_PURPLE);
-  tft.setTextColor(TFT_WHITE, TFT_PURPLE);
+  tft.fillScreen(TFT_WHITE);
+  tft.setTextColor(TFT_RED, TFT_WHITE);
   tft.setTextSize(4);
   int16_t textHeight = tft.fontHeight();
   tft.setCursor(10, (TFT_WIDTH - textHeight) / 2);
@@ -649,6 +649,8 @@ void handleSigningRequestEvent(uint8_t *data)
 
   if (method == "connect")
   {
+    // print the message
+    Serial.println("message is: " + message);
     handleConnect(eventDoc, requestingPubKey);
   }
   else if (method == "sign_event")
@@ -752,12 +754,19 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
   }
 }
 
+uint8_t socketDisconnectCount = 0;
+
 // connect to web socket server. set up callbacks, on connect, on disconnect, on message
 void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
 {
   switch (type)
   {
   case WStype_DISCONNECTED:
+    ++socketDisconnectCount;
+    if(socketDisconnectCount > 3) {
+      showMessage("Error", "Failed to connect to relay.");
+      ESP.restart();
+    }
     Serial.printf("[WSc] Disconnected!\n");
     showMessage("Disconnected from relay", "Reconnecting..");
     webSocket.beginSSL(nsecbunkerRelay, 443);
@@ -765,6 +774,7 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
     break;
   case WStype_CONNECTED:
   {
+    socketDisconnectCount = 0;
     Serial.printf("[WSc] Connected to %s\n", nsecbunkerRelay);
     showMessage("Connected to " + String(nsecbunkerRelay), "Awaiting requests.");
     // watch for 24133 kind events
@@ -833,7 +843,7 @@ void showConnectionScreen()
     {
       if (qrcode_getModule(&qrcode, x, y))
       {
-        tft.fillRect(startX + x * pixelSize, startY + y * pixelSize, pixelSize, pixelSize, TFT_PURPLE);
+        tft.fillRect(startX + x * pixelSize, startY + y * pixelSize, pixelSize, pixelSize, TFT_BLACK);
       }
     }
   }
@@ -905,7 +915,7 @@ void setup()
   tft.setRotation(3);
   tft.invertDisplay(true);
 
-  // tft.fillScreen(TFT_WHITE);
+  // tft.fillScreen(TFT_RED);
   // tft.pushImage(TFT_HEIGHT / 2 - FACE_WIDTH / 2, TFT_WIDTH / 2 - FACE_HEIGHT / 2, FACE_WIDTH, FACE_HEIGHT, face, 0x066c);
   showWelcomeScreen();
   delay(1000);
