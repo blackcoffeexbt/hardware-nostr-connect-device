@@ -19,3 +19,12 @@ Please review, improve and PR.
 1. Copy src/config.h.example to src/config.h and update the relevant vars
 1. Flash
 1. Test with a client that supports NIP46. nostrudel.ninja is a great client for testing this. Press and hold button 1 to get a pairing QR code.
+
+
+# Todo
+
+[] Add a stats screen (notes signed, time online etc)
+[] Add a menu system
+[] Pin code to unlock on startup
+[] Web installer
+[] Web configurator
