@@ -2,8 +2,7 @@
 
 # THIS IS AN ALPHA PROJECT
 
-The code quality is mediocre at best due to weeks of layers of "figuring it out" and needs a massive refactor. Pls help if you have time and can. Better tests, refactoring, would be nice.
-
+Pls contribute if you have time and are able. Better tests, restuvturing and refactoring, would be nice.
 
 The project currently supports only the Lilygo T-Display S3 board and is in alpha state.
 
