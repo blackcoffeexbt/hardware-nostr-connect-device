@@ -22,12 +22,8 @@ Please review, improve and PR.
 
 # Todo
 
-[] Add a stats screen (notes signed, time online etc)
-
-[] Add a menu system
-
-[] Pin code to unlock on startup
-
-[] Web installer
-
-[] Web configurator
+- [ ] Add a stats screen (notes signed, time online etc)
+- [ ] Add a menu system
+- [ ] Pin code to unlock on startup
+- [ ] Web installer
+- [ ] Web configurator
