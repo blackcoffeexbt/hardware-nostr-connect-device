@@ -22,6 +22,7 @@ Please review, improve and PR.
 
 # Todo
 
+- [ ] Add multi nsec support 
 - [ ] Add a stats screen (notes signed, time online etc)
 - [ ] Add a menu system
 - [ ] Pin code to unlock on startup
