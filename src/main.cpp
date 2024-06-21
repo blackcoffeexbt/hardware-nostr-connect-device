@@ -466,7 +466,7 @@ void handleSignEvent(DynamicJsonDocument &doc, char const *requestingPubKey)
   utilities::stopTimer("webSocket.sendTXT");
   // define an array of messages to add to the screen
   const char *messages[] = {"Nice!", "GM", "#coffeechain", "Pura vida", "Zap zap", "Bloomer not Doomer", "MICHAEL SAYLOR KICKED MY DOG."};
-  // showMessage("Signed event sent.", messages[random(0, 7)]);
+  // showMessage("Event signed.", messages[random(0, 7)]);
   utilities::stopTimer("handleSignEvent");
   delay(500);
 }
@@ -748,7 +748,7 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
     handleSigningRequestEvent(data);
   }
   // if data includes EVENT and 4 kind, decrypt it
-  else if (strstr((char *)data, "EVENT") && strstr((char *)data, "4"))
+  else if (strstr((char *)data, "EVENT") && strstr((char *)data, "24134"))
   {
     handleConfigRequestEvent(data);
   }

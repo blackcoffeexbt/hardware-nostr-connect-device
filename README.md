@@ -27,4 +27,4 @@ Please review, improve and PR.
 [] Add a menu system
 [] Pin code to unlock on startup
 [] Web installer
-[] Web configurator
+[] Web configurator PWA
