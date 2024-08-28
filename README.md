@@ -6,11 +6,11 @@ Pls contribute if you have time and are able. Better tests, restuvturing and ref
 
 The project currently supports only the Lilygo T-Display S3 board and is in alpha state.
 
-The Lilygo T-Display S3 can be bought for around 9GBP / 11 EUR / 11 USD on AliExpress - https://www.aliexpress.com/item/1005004898948906.html
+The Lilygo T-Display S3 can be bought on AliExpress - https://www.aliexpress.com/item/1005004898948906.html
 
-You need to be able to use platformio to be able to test this.
+You need to be able to use platformio to be able build, configure and flash the board
 
-Please review, improve and PR.
+Please use, review, improve and PR.
 
 ## How to flash
 
