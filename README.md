@@ -1,30 +1,43 @@
+Here’s a revised version that is friendlier and more organized:
+
+---
+
 # Nostr Connect Hardware Signer
 
-# THIS IS AN ALPHA PROJECT
+### ⚠️ **Alpha Version** ⚠️  
+This project is in its early stages, and contributions are welcome! We’d love help with testing, restructuring, and refactoring to make it better.
 
-Pls contribute if you have time and are able. Better tests, restuvturing and refactoring, would be nice.
+---
 
-The project currently supports only the Lilygo T-Display S3 board and is in alpha state.
+### Overview
 
-The Lilygo T-Display S3 can be bought on AliExpress - https://www.aliexpress.com/item/1005004898948906.html
+Currently, this project supports the **Lilygo T-Display S3** board, which can be purchased on [AliExpress](https://www.aliexpress.com/item/1005004898948906.html). Please note that it's still in alpha, so expect ongoing improvements.
 
-You need to be able to use platformio to be able build, configure and flash the board
+### Requirements
 
-Please use, review, improve and PR.
+- **PlatformIO**: You’ll need PlatformIO to build, configure, and flash the board.
+  
+Feel free to **use**, **review**, and **improve** the project. Pull requests are always appreciated!
 
-## How to flash
+---
 
-1. Clone the repo
-1. Copy src/config.h.example to src/config.h and update the relevant vars
-1. Flash
-1. Test with a client that supports NIP46. nostrudel.ninja is a great client for testing this. Press and hold button 1 to get a pairing QR code.
+### Flashing Instructions
 
+1. **Clone the repository.**
+2. **Configure your settings**:  
+   Copy `src/config.h.example` to `src/config.h` and update the necessary variables.
+3. **Flash the firmware** onto the Lilygo T-Display S3.
+4. **Test your setup**:  
+   Use a client that supports NIP46 (like [nostrudel.ninja](https://nostrudel.ninja/)) to test. Press and hold Button 1 to display a pairing QR code.
 
-# Todo
+---
 
-- [ ] Add multi nsec support 
-- [ ] Add a stats screen (notes signed, time online etc)
-- [ ] Add a menu system
-- [ ] Pin code to unlock on startup
-- [ ] Web installer
-- [ ] Web configurator
+### Roadmap & To-Do List
+
+- [ ] Support for multiple `nsecs` per device
+- [ ] Add a stats screen (e.g., notes signed, time online)
+- [ ] Implement a menu system
+- [ ] Add a PIN code unlock on startup
+- [ ] Create a web-based installer
+- [ ] Develop a web configurator
+- [ ] Build a notification service for remote ACK of signing requests
