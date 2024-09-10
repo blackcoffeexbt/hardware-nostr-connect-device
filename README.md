@@ -1,7 +1,3 @@
-Here’s a revised version that is friendlier and more organized:
-
----
-
 # Nostr Connect Hardware Signer
 
 ### ⚠️ **Alpha Version** ⚠️  
