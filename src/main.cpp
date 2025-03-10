@@ -907,16 +907,25 @@ void showConnectionScreen()
   }
 }
 
+/**
+ * @brief Used for testing hardware buttons
+ * 
+ * @param buttonNumber 
+ */
 void showButtonNumberPressed(int buttonNumber)
 {
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setTextSize(1);
   tft.setCursor(0, TFT_WIDTH - 20);
   tft.println("Button " + String(buttonNumber) + " pressed");
-  delay(1000);
+  delay(500);
   tft.fillRect(0, TFT_WIDTH - 20, TFT_HEIGHT, 20, TFT_BLACK);
 }
 
+/**
+ * @brief Set up screen buttons for the setup screen
+ * 
+ */
 void setupSetupScreenButtons()
 {
   button1.attachClick([]() {
