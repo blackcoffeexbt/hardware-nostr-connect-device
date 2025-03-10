@@ -30,6 +30,7 @@ bool hasBeenSetup = false;
 OneButton button1(PIN_BUTTON_1, true);
 OneButton button2(PIN_BUTTON_2, true);
 OneButton button3(PIN_BUTTON_3, true);
+OneButton button4(PIN_BUTTON_4, true);
 
 WebSocketsClient webSocket;
 WebSocketsClient webSocketTemp;
@@ -458,491 +459,495 @@ void showSetupScreen()
       }
     }
   }
-  // now a loop that detects button presses and shows a message at the bottom of the screen depending on which button is pressed
+  // forever while loop with button ticks
   while (true)
   {
     button1.tick();
     button2.tick();
     button3.tick();
-    if (buttonResponse == 1)
-    {
-      showMessage("Button 1 pressed", "");
-    }
-    else if (buttonResponse == 2)
-    {
-      showMessage("Button 2 pressed", "");
-    }
-    else if (buttonResponse == 3)
-    {
-      showMessage("Button 3 pressed", "");
-    }
-    delay(50);
+    button4.tick();
+    delay(10);
   }
 }
 
 void showWelcomeScreen()
 {
-  if (hasBeenSetup)
+  animateTyping("PURA VIDA!");
+}
+
+void handleSignEvent(DynamicJsonDocument &doc, char const *requestingPubKey)
+{
+  utilities::startTimer("handleSignEvent");
+  // showMessage("Signing request received", "");
+  utilities::stopTimer("showMessage");
+
+  String secret = doc["params"][1];
+  // Serial.println("secret from client is: " + secret);
+
+  if (!checkClientIsAuthorised(requestingPubKey, secret.c_str()))
   {
-    animateTyping("PURA VIDA!");
+    return;
   }
-  else
+
+  // Debug this to see why tags arent being parsed
+  String docParams = doc["params"][0];
+  // Serial.println("docParams is: " + docParams);
+  DocumentData docData = parseDocumentData(doc["params"][0].as<const char *>());
+  utilities::stopTimer("parseDocumentData");
+  // print all docData values
+  // _logToSerialWithTitle("tags is: ", docData.tags);
+  // _logToSerialWithTitle("kind is: ", String(docData.kind));
+  // _logToSerialWithTitle("content is: ", docData.content);
+  // _logToSerialWithTitle("timestamp is: ", String(docData.timestamp));
+
+  uint16_t kind = docData.kind;
+  unsigned long timestamp = docData.timestamp;
+  _logToSerialWithTitle("timestamp is: ", String(timestamp));
+
+  String requestId = doc["id"];
+  String signedEvent = nostr::getNote(nsecHex, npubHex, timestamp, docData.content, kind, docData.tags);
+  utilities::stopTimer("nostr::getNote");
+  // _logToSerialWithTitle("signedEvent is: ", signedEvent);
+  // escape the double quotes and slashes
+  signedEvent.replace("\\", "\\\\");
+  signedEvent.replace("\"", "\\\"");
+  int responseMsgCharSize = signedEvent.length() + requestId.length() + 40;
+  char *responseMsgChar = (char *)ps_malloc(responseMsgCharSize);
+  sprintf(responseMsgChar, "{\"id\":\"%s\",\"result\":\"%s\"}", requestId.c_str(), signedEvent.c_str());
+  // _logToSerialWithTitle("responseMsg is: ", responseMsg);
+  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingPubKey, 24133, timestamp, String(responseMsgChar));
+  utilities::stopTimer("nostr::getEncryptedDm");
+  free(responseMsgChar);
+  // _logToSerialWithTitle("dm is: ", dm);
+  webSocket.sendTXT(dm);
+  utilities::stopTimer("webSocket.sendTXT");
+  // define an array of messages to add to the screen
+  const char *messages[] = {"Nice!", "GM", "#coffeechain", "Pura vida", "Zap zap", "Bloomer not Doomer", "MICHAEL SAYLOR KICKED MY DOG."};
+  // showMessage("Event signed.", messages[random(0, 7)]);
+  utilities::stopTimer("handleSignEvent");
+  delay(500);
+}
+
+void signerStartedConnectedEvent(WStype_t type, uint8_t *payload, size_t length)
+{
+  switch (type)
   {
-    showSetupScreen();
-    
+  case WStype_DISCONNECTED:
+    Serial.printf("[WSc] Disconnected!\n");
+    showMessage("Disconnected from relay.damus.io relay", "Reconnecting..");
+    webSocketTemp.beginSSL("relay.damus.io", 443);
+    webSocketTemp.onEvent(signerStartedConnectedEvent);
+    break;
+  case WStype_CONNECTED:
+  {
+    showMessage("Connected to relay.damus.io relay", "Sending connected message");
+    Serial.printf("[WSc] Connected to %s\n", nsecbunkerRelay);
+    String message = "Signer started";
+    String dm = nostr::getEncryptedDm(nsecHex, npubHex, npubHex, 4, unixTimestamp, message);
+    webSocketTemp.sendTXT(dm);
+    break;
+  }
+  case WStype_TEXT:
+  {
+    Serial.printf("[WSc] got WS TEXT\n");
+    break;
+  }
+  case WStype_BIN:
+    Serial.printf("[WSc] get binary length: %u\n", length);
+    break;
   }
 }
 
-  void handleSignEvent(DynamicJsonDocument & doc, char const *requestingPubKey)
+void sendSignerStartedMsg()
+{
+  // create a new websocket connectio nto nos.lol and send the dm when connected
+  showMessage("Connecting to relay", "Sending connected message");
+  webSocketTemp.beginSSL("relay.damus.io", 443);
+  webSocketTemp.onEvent(signerStartedConnectedEvent);
+  webSocketTemp.setReconnectInterval(5000);
+}
+
+/**
+ * @brief Respond to a ping request
+ *
+ * @param doc
+ */
+void handlePing(DynamicJsonDocument &doc, const char *requestingNpub)
+{
+  showMessage("Ping received", "Ponging");
+  if (!isClientNpubAuthorised(requestingNpub))
   {
-    utilities::startTimer("handleSignEvent");
-    // showMessage("Signing request received", "");
-    utilities::stopTimer("showMessage");
+    return;
+  }
+  String requestId = doc["id"];
+  String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"pong\"}";
+  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
+  webSocket.sendTXT(dm);
+}
 
-    String secret = doc["params"][1];
-    // Serial.println("secret from client is: " + secret);
+/**
+ * @brief Send the relays to the client
+ *
+ * @param doc
+ */
+void handleGetRelays(DynamicJsonDocument &doc, const char *requestingNpub)
+{
+  showMessage("Request for relays received", "Sending relays");
+  if (!isClientNpubAuthorised(requestingNpub))
+  {
+    return;
+  }
+  String requestId = doc["id"];
+  // response should be serialised JSON {<relay_url>: {read: <boolean>, write: <boolean>}}
+  String relays = "{\"" + String(nsecbunkerRelay) + "\": {\"read\": true, \"write\": true}}";
+  String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":" + relays + "}";
+  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
+  webSocket.sendTXT(dm);
+}
 
-    if (!checkClientIsAuthorised(requestingPubKey, secret.c_str()))
-    {
-      return;
-    }
+/**
+ * @brief Send the public key to the client
+ *
+ * @param doc
+ */
+void handleGetPublicKey(DynamicJsonDocument &doc, const char *requestingNpub)
+{
+  showMessage("Request for public key received", "Sending public key");
+  if (!isClientNpubAuthorised(requestingNpub))
+  {
+    return;
+  }
+  String requestId = doc["id"];
+  String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + npubHex + "\"}";
+  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
+  webSocket.sendTXT(dm);
+}
 
-    // Debug this to see why tags arent being parsed
-    String docParams = doc["params"][0];
-    // Serial.println("docParams is: " + docParams);
-    DocumentData docData = parseDocumentData(doc["params"][0].as<const char *>());
-    utilities::stopTimer("parseDocumentData");
-    // print all docData values
-    // _logToSerialWithTitle("tags is: ", docData.tags);
-    // _logToSerialWithTitle("kind is: ", String(docData.kind));
-    // _logToSerialWithTitle("content is: ", docData.content);
-    // _logToSerialWithTitle("timestamp is: ", String(docData.timestamp));
+/**
+ * @brief Encrypt some text with NIP04
+ *
+ * @param doc
+ */
+void handleNip04Encrypt(DynamicJsonDocument &doc, const char *requestingNpub)
+{
+  // showMessage("Request to encrypt NIP04", "received");
+  if (!isClientNpubAuthorised(requestingNpub))
+  {
+    return;
+  }
+  String thirdPartyPubKey = doc["params"][0];
+  String plaintext = doc["params"][1];
+  String encryptedMessage = nostr::getCipherText(nsecHex, thirdPartyPubKey.c_str(), plaintext);
 
-    uint16_t kind = docData.kind;
-    unsigned long timestamp = docData.timestamp;
-    _logToSerialWithTitle("timestamp is: ", String(timestamp));
+  // send the encrypted message back to the client
+  String requestId = doc["id"];
+  String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + encryptedMessage + "\"}";
+  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
+  webSocket.sendTXT(dm);
+}
 
-    String requestId = doc["id"];
-    String signedEvent = nostr::getNote(nsecHex, npubHex, timestamp, docData.content, kind, docData.tags);
-    utilities::stopTimer("nostr::getNote");
-    // _logToSerialWithTitle("signedEvent is: ", signedEvent);
-    // escape the double quotes and slashes
-    signedEvent.replace("\\", "\\\\");
-    signedEvent.replace("\"", "\\\"");
-    int responseMsgCharSize = signedEvent.length() + requestId.length() + 40;
-    char *responseMsgChar = (char *)ps_malloc(responseMsgCharSize);
-    sprintf(responseMsgChar, "{\"id\":\"%s\",\"result\":\"%s\"}", requestId.c_str(), signedEvent.c_str());
-    // _logToSerialWithTitle("responseMsg is: ", responseMsg);
-    String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingPubKey, 24133, timestamp, String(responseMsgChar));
-    utilities::stopTimer("nostr::getEncryptedDm");
-    free(responseMsgChar);
-    // _logToSerialWithTitle("dm is: ", dm);
-    webSocket.sendTXT(dm);
-    utilities::stopTimer("webSocket.sendTXT");
-    // define an array of messages to add to the screen
-    const char *messages[] = {"Nice!", "GM", "#coffeechain", "Pura vida", "Zap zap", "Bloomer not Doomer", "MICHAEL SAYLOR KICKED MY DOG."};
-    // showMessage("Event signed.", messages[random(0, 7)]);
-    utilities::stopTimer("handleSignEvent");
-    delay(500);
+void handleNip04Decrypt(DynamicJsonDocument &doc, const char *requestingNpub)
+{
+  // showMessage("Request to decrypt NIP04", "received");
+  if (!isClientNpubAuthorised(requestingNpub))
+  {
+    return;
+  }
+  // message is in params: [<third_party_pubkey>, <nip04_ciphertext_to_decrypt>]
+  String thirdPartyPubKey = doc["params"][0];
+  String cipherText = doc["params"][1];
+  _logToSerialWithTitle("thirdPartyPubKey is: ", thirdPartyPubKey);
+  // _logToSerialWithTitle("cipherText is: ", cipherText);
+
+  String decryptedMessage = nostr::decryptNip04Ciphertext(cipherText, nsecHex, thirdPartyPubKey);
+  // _logToSerialWithTitle("decryptedMessage is: ", decryptedMessage);
+  // now we need to send the decrypted message back to the client
+  String requestId = doc["id"];
+
+  // for (int i = 0; i < decryptedMessage.length(); i++)
+  // {
+  //   // Cast each character to an integer to see its ASCII value
+  //   Serial.print(i); // Print the character position
+  //   Serial.print(": '");
+  //   Serial.print(decryptedMessage[i]); // Print the character itself if it's printable
+  //   Serial.print("' (ASCII: ");
+  //   Serial.print((int)decryptedMessage[i]); // Print the ASCII value
+  //   Serial.println(")");
+  // }
+  cleanMessage(decryptedMessage);
+  decryptedMessage.trim();
+  // log decryptedMessage and show any ascii characters
+  String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + decryptedMessage + "\"}";
+  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
+  webSocket.sendTXT(dm);
+  // showMessage("Decrypted:", decryptedMessage);
+}
+
+void handleSigningRequestEvent(uint8_t *data)
+{
+  utilities::startTimer("handleSigningRequestEvent");
+  String requestingPubKey = nostr::getSenderPubKeyHex(String((char *)data));
+  // utilities::stopTimer("nostr::getSenderPubKeyHex");
+
+  String message = nostr::nip04Decrypt(nsecHex, String((char *)data));
+  // utilities::stopTimer("nostr::nip04Decrypt");
+  // _logToSerialWithTitle("Decrypted message is: ", message);
+  // _logToSerialWithTitle("message is: ", message);
+  DeserializationError error = deserializeJson(eventDoc, message);
+  // utilities::stopTimer("deserializeJson");
+  if (error)
+  {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.c_str());
   }
 
-  void signerStartedConnectedEvent(WStype_t type, uint8_t *payload, size_t length)
+  String method = eventDoc["method"];
+  _logToSerialWithTitle("method is: ", method);
+
+  if (method == "connect")
   {
-    switch (type)
-    {
-    case WStype_DISCONNECTED:
-      Serial.printf("[WSc] Disconnected!\n");
-      showMessage("Disconnected from relay.damus.io relay", "Reconnecting..");
-      webSocketTemp.beginSSL("relay.damus.io", 443);
-      webSocketTemp.onEvent(signerStartedConnectedEvent);
-      break;
-    case WStype_CONNECTED:
-    {
-      showMessage("Connected to relay.damus.io relay", "Sending connected message");
-      Serial.printf("[WSc] Connected to %s\n", nsecbunkerRelay);
-      String message = "Signer started";
-      String dm = nostr::getEncryptedDm(nsecHex, npubHex, npubHex, 4, unixTimestamp, message);
-      webSocketTemp.sendTXT(dm);
-      break;
-    }
-    case WStype_TEXT:
-    {
-      Serial.printf("[WSc] got WS TEXT\n");
-      break;
-    }
-    case WStype_BIN:
-      Serial.printf("[WSc] get binary length: %u\n", length);
-      break;
-    }
+    // print the message
+    Serial.println("message is: " + message);
+    handleConnect(eventDoc, requestingPubKey);
   }
-
-  void sendSignerStartedMsg()
+  else if (method == "sign_event")
   {
-    // create a new websocket connectio nto nos.lol and send the dm when connected
-    showMessage("Connecting to relay", "Sending connected message");
-    webSocketTemp.beginSSL("relay.damus.io", 443);
-    webSocketTemp.onEvent(signerStartedConnectedEvent);
-    webSocketTemp.setReconnectInterval(5000);
+    handleSignEvent(eventDoc, requestingPubKey.c_str());
   }
-
-  /**
-   * @brief Respond to a ping request
-   *
-   * @param doc
-   */
-  void handlePing(DynamicJsonDocument & doc, const char *requestingNpub)
+  else if (method == "ping")
   {
-    showMessage("Ping received", "Ponging");
-    if (!isClientNpubAuthorised(requestingNpub))
-    {
-      return;
-    }
-    String requestId = doc["id"];
-    String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"pong\"}";
-    String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
-    webSocket.sendTXT(dm);
+    handlePing(eventDoc, requestingPubKey.c_str());
   }
-
-  /**
-   * @brief Send the relays to the client
-   *
-   * @param doc
-   */
-  void handleGetRelays(DynamicJsonDocument & doc, const char *requestingNpub)
+  else if (method == "get_relays")
   {
-    showMessage("Request for relays received", "Sending relays");
-    if (!isClientNpubAuthorised(requestingNpub))
-    {
-      return;
-    }
-    String requestId = doc["id"];
-    // response should be serialised JSON {<relay_url>: {read: <boolean>, write: <boolean>}}
-    String relays = "{\"" + String(nsecbunkerRelay) + "\": {\"read\": true, \"write\": true}}";
-    String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":" + relays + "}";
-    String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
-    webSocket.sendTXT(dm);
+    handleGetRelays(eventDoc, requestingPubKey.c_str());
   }
-
-  /**
-   * @brief Send the public key to the client
-   *
-   * @param doc
-   */
-  void handleGetPublicKey(DynamicJsonDocument & doc, const char *requestingNpub)
+  else if (method == "get_public_key")
   {
-    showMessage("Request for public key received", "Sending public key");
-    if (!isClientNpubAuthorised(requestingNpub))
-    {
-      return;
-    }
-    String requestId = doc["id"];
-    String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + npubHex + "\"}";
-    String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
-    webSocket.sendTXT(dm);
+    handleGetPublicKey(eventDoc, requestingPubKey.c_str());
   }
-
-  /**
-   * @brief Encrypt some text with NIP04
-   *
-   * @param doc
-   */
-  void handleNip04Encrypt(DynamicJsonDocument & doc, const char *requestingNpub)
+  else if (method == "nip04_encrypt")
   {
-    // showMessage("Request to encrypt NIP04", "received");
-    if (!isClientNpubAuthorised(requestingNpub))
-    {
-      return;
-    }
-    String thirdPartyPubKey = doc["params"][0];
-    String plaintext = doc["params"][1];
-    String encryptedMessage = nostr::getCipherText(nsecHex, thirdPartyPubKey.c_str(), plaintext);
-
-    // send the encrypted message back to the client
-    String requestId = doc["id"];
-    String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + encryptedMessage + "\"}";
-    String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
-    webSocket.sendTXT(dm);
+    handleNip04Encrypt(eventDoc, requestingPubKey.c_str());
   }
-
-  void handleNip04Decrypt(DynamicJsonDocument & doc, const char *requestingNpub)
+  else if (method == "nip04_decrypt")
   {
-    // showMessage("Request to decrypt NIP04", "received");
-    if (!isClientNpubAuthorised(requestingNpub))
-    {
-      return;
-    }
-    // message is in params: [<third_party_pubkey>, <nip04_ciphertext_to_decrypt>]
-    String thirdPartyPubKey = doc["params"][0];
-    String cipherText = doc["params"][1];
-    _logToSerialWithTitle("thirdPartyPubKey is: ", thirdPartyPubKey);
-    // _logToSerialWithTitle("cipherText is: ", cipherText);
-
-    String decryptedMessage = nostr::decryptNip04Ciphertext(cipherText, nsecHex, thirdPartyPubKey);
-    // _logToSerialWithTitle("decryptedMessage is: ", decryptedMessage);
-    // now we need to send the decrypted message back to the client
-    String requestId = doc["id"];
-
-    // for (int i = 0; i < decryptedMessage.length(); i++)
-    // {
-    //   // Cast each character to an integer to see its ASCII value
-    //   Serial.print(i); // Print the character position
-    //   Serial.print(": '");
-    //   Serial.print(decryptedMessage[i]); // Print the character itself if it's printable
-    //   Serial.print("' (ASCII: ");
-    //   Serial.print((int)decryptedMessage[i]); // Print the ASCII value
-    //   Serial.println(")");
-    // }
-    cleanMessage(decryptedMessage);
-    decryptedMessage.trim();
-    // log decryptedMessage and show any ascii characters
-    String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + decryptedMessage + "\"}";
-    String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
-    webSocket.sendTXT(dm);
-    // showMessage("Decrypted:", decryptedMessage);
+    handleNip04Decrypt(eventDoc, requestingPubKey.c_str());
   }
-
-  void handleSigningRequestEvent(uint8_t *data)
+  else
   {
-    utilities::startTimer("handleSigningRequestEvent");
-    String requestingPubKey = nostr::getSenderPubKeyHex(String((char *)data));
-    // utilities::stopTimer("nostr::getSenderPubKeyHex");
-
-    String message = nostr::nip04Decrypt(nsecHex, String((char *)data));
-    // utilities::stopTimer("nostr::nip04Decrypt");
-    // _logToSerialWithTitle("Decrypted message is: ", message);
-    // _logToSerialWithTitle("message is: ", message);
-    DeserializationError error = deserializeJson(eventDoc, message);
-    // utilities::stopTimer("deserializeJson");
-    if (error)
-    {
-      Serial.print(F("deserializeJson() failed: "));
-      Serial.println(error.c_str());
-    }
-
-    String method = eventDoc["method"];
-    _logToSerialWithTitle("method is: ", method);
-
-    if (method == "connect")
-    {
-      // print the message
-      Serial.println("message is: " + message);
-      handleConnect(eventDoc, requestingPubKey);
-    }
-    else if (method == "sign_event")
-    {
-      handleSignEvent(eventDoc, requestingPubKey.c_str());
-    }
-    else if (method == "ping")
-    {
-      handlePing(eventDoc, requestingPubKey.c_str());
-    }
-    else if (method == "get_relays")
-    {
-      handleGetRelays(eventDoc, requestingPubKey.c_str());
-    }
-    else if (method == "get_public_key")
-    {
-      handleGetPublicKey(eventDoc, requestingPubKey.c_str());
-    }
-    else if (method == "nip04_encrypt")
-    {
-      handleNip04Encrypt(eventDoc, requestingPubKey.c_str());
-    }
-    else if (method == "nip04_decrypt")
-    {
-      handleNip04Decrypt(eventDoc, requestingPubKey.c_str());
-    }
-    else
-    {
-      Serial.println("default");
-      // print the data
-      Serial.println("data is: " + String((char *)data));
-    }
-    utilities::stopTimer("handleSigningRequestEvent");
+    Serial.println("default");
+    // print the data
+    Serial.println("data is: " + String((char *)data));
   }
+  utilities::stopTimer("handleSigningRequestEvent");
+}
 
-  // function to validate whether a string is a valid json string or not
-  bool isJson(String str)
+// function to validate whether a string is a valid json string or not
+bool isJson(String str)
+{
+  const size_t capacity = esp_get_free_heap_size() / 2;
+  DynamicJsonDocument doc(capacity);
+  DeserializationError error = deserializeJson(doc, str);
+  if (error)
   {
-    const size_t capacity = esp_get_free_heap_size() / 2;
-    DynamicJsonDocument doc(capacity);
-    DeserializationError error = deserializeJson(doc, str);
-    if (error)
-    {
-      return false;
-    }
-    return true;
+    return false;
   }
+  return true;
+}
 
-  void handleConfigRequestEvent(uint8_t *data)
+void handleConfigRequestEvent(uint8_t *data)
+{
+  String message = nostr::nip04Decrypt(nsecHex, String((char *)data));
+  cleanMessage(message);
+  // message can be "get_config" or some JSON. if it's json then it's a config update
+  if (message == "get_config")
   {
-    String message = nostr::nip04Decrypt(nsecHex, String((char *)data));
-    cleanMessage(message);
-    // message can be "get_config" or some JSON. if it's json then it's a config update
-    if (message == "get_config")
+    String configJson = getSerialisedConfigDoc();
+    showMessage("Configuration request", "received");
+    String configData = nostr::getEncryptedDm(nsecHex, npubHex, adminNpubHex, 24134, unixTimestamp, configJson);
+    webSocket.sendTXT(configData);
+    showMessage("Configuration sent to relay", "");
+  }
+  else
+  {
+    try
     {
+      if (!isJson(message))
+      {
+        showMessage("Error", "Config update rejected. JSON is invalid.");
+        return;
+      }
+      showMessage("Config update", "received");
+      updateConfigDoc(message);
+      // delay(500);
+      showMessage("Config updated", message);
+      // delay(500);
       String configJson = getSerialisedConfigDoc();
-      showMessage("Configuration request", "received");
       String configData = nostr::getEncryptedDm(nsecHex, npubHex, adminNpubHex, 24134, unixTimestamp, configJson);
+      Serial.println("Config data is: " + configData);
       webSocket.sendTXT(configData);
-      showMessage("Configuration sent to relay", "");
+      showMessage("Updated config sent", "");
     }
-    else
+    catch (const std::exception &e)
     {
-      try
-      {
-        if (!isJson(message))
-        {
-          showMessage("Error", "Config update rejected. JSON is invalid.");
-          return;
-        }
-        showMessage("Config update", "received");
-        updateConfigDoc(message);
-        // delay(500);
-        showMessage("Config updated", message);
-        // delay(500);
-        String configJson = getSerialisedConfigDoc();
-        String configData = nostr::getEncryptedDm(nsecHex, npubHex, adminNpubHex, 24134, unixTimestamp, configJson);
-        Serial.println("Config data is: " + configData);
-        webSocket.sendTXT(configData);
-        showMessage("Updated config sent", "");
-      }
-      catch (const std::exception &e)
-      {
-        Serial.println("Error updating config: " + String(e.what()));
-      }
+      Serial.println("Error updating config: " + String(e.what()));
     }
   }
+}
 
-  void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
+void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
+{
+  // _logToSerialWithTitle("Received data", String((char *)data));
+  // if data includes EVENT and 24133 kind, decrypt it
+  if (strstr((char *)data, "EVENT") && strstr((char *)data, "24133"))
   {
-    // _logToSerialWithTitle("Received data", String((char *)data));
-    // if data includes EVENT and 24133 kind, decrypt it
-    if (strstr((char *)data, "EVENT") && strstr((char *)data, "24133"))
-    {
-      handleSigningRequestEvent(data);
-    }
-    // if data includes EVENT and 4 kind, decrypt it
-    else if (strstr((char *)data, "EVENT") && strstr((char *)data, "24134"))
-    {
-      handleConfigRequestEvent(data);
-    }
+    handleSigningRequestEvent(data);
   }
-
-  uint8_t socketDisconnectCount = 0;
-
-  // connect to web socket server. set up callbacks, on connect, on disconnect, on message
-  void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
+  // if data includes EVENT and 4 kind, decrypt it
+  else if (strstr((char *)data, "EVENT") && strstr((char *)data, "24134"))
   {
-    switch (type)
-    {
-    case WStype_DISCONNECTED:
-      ++socketDisconnectCount;
-      if (socketDisconnectCount > 3)
-      {
-        showMessage("Error", "Failed to connect to relay.");
-        ESP.restart();
-      }
-      Serial.printf("[WSc] Disconnected!\n");
-      showMessage("Disconnected from relay", "Reconnecting..");
-      webSocket.beginSSL(nsecbunkerRelay, 443);
-      webSocket.onEvent(webSocketEvent);
-      break;
-    case WStype_CONNECTED:
-    {
-      socketDisconnectCount = 0;
-      Serial.printf("[WSc] Connected to %s\n", nsecbunkerRelay);
-      showMessage("Connected to " + String(nsecbunkerRelay), "Awaiting requests.");
-      // watch for 24133 kind events
-      String npubHexString(npubHex);
-      char *output = new char[64];
-      getRandom64ByteHex(output);
-
-      String req = "[\"REQ\", \"" + String(output) + "\",{\"kinds\":[24133],\"#p\":[\"" + npubHexString + "\"],\"limit\":0}";
-      req += ",{\"kinds\":[24134],\"#p\":[\"" + npubHexString + "\"],\"authors\":[\"" + String(adminNpubHex) + "\"],\"limit\":0}";
-      req += "]";
-      Serial.println("req is: " + req);
-      webSocket.sendTXT(req);
-      // delay(1000);
-      turnOffDisplay();
-      break;
-    }
-    case WStype_TEXT:
-    {
-      Serial.printf("[WSc] Got WS TEXT\n");
-      Serial.println("Payload is: " + String((char *)payload));
-      handleWebSocketMessage(NULL, payload, length);
-      // delay(1000);
-      turnOffDisplay();
-      break;
-    }
-    case WStype_BIN:
-      Serial.printf("[WSc] get binary length: %u\n", length);
-      break;
-    }
+    handleConfigRequestEvent(data);
   }
+}
 
-  /**
-   * @brief Show the connection screen with QR code
-   *
-   */
-  void showConnectionScreen()
+uint8_t socketDisconnectCount = 0;
+
+// connect to web socket server. set up callbacks, on connect, on disconnect, on message
+void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
+{
+  switch (type)
   {
-    turnOnDisplay();
-    // create conneciton string using npubhex and relay and secretKey in format bunker://683211bd155c7b764e4b99ba263a151d81209be7a566a2bb1971dc1bbd3b715e?relay=wss://relay.nsecbunker.com&secret=faf68770560f9300346af4393746c7371cfed27bdd5db1155b3f2d358638772c
-    uint16_t charArraySize = 30 + strlen(npubHex) + strlen(nsecbunkerRelay) + strlen(secretKey);
-    char connectionUrl[charArraySize];
-    sprintf(connectionUrl, "bunker://%s?relay=wss://%s&secret=%s", npubHex, nsecbunkerRelay, secretKey);
-    // sprintf(connectionUrl, "%s", "TEST");
-    Serial.println("Connection URL is " + String(connectionUrl));
-
-    uint8_t qrVersion = 8;
-    uint8_t qrNumBlocks = 49; // num of blocks wide from table here https://github.com/ricmoo/QRCode
-    uint8_t pixelSize = floor(TFT_WIDTH / qrNumBlocks);
-
-    // calculate the size of the QR code
-    uint8_t qrPixelSize = qrNumBlocks * pixelSize;
-    // use this to centre on the display
-    uint16_t screenWidth = 320;
-    uint16_t screenHeight = 170;
-    uint16_t startX = TFT_HEIGHT / 2 - qrPixelSize / 2;
-    uint16_t startY = TFT_WIDTH / 2 - qrPixelSize / 2;
-
-    tft.fillScreen(TFT_WHITE);
-    QRCode qrcode;
-    uint8_t qrcodeData[qrcode_getBufferSize(qrVersion)];
-    qrcode_initText(&qrcode, qrcodeData, qrVersion, 0, connectionUrl);
-    // draw the QR code
-    for (uint8_t y = 0; y < qrcode.size; y++)
+  case WStype_DISCONNECTED:
+    ++socketDisconnectCount;
+    if (socketDisconnectCount > 3)
     {
-      for (uint8_t x = 0; x < qrcode.size; x++)
+      showMessage("Error", "Failed to connect to relay.");
+      ESP.restart();
+    }
+    Serial.printf("[WSc] Disconnected!\n");
+    showMessage("Disconnected from relay", "Reconnecting..");
+    webSocket.beginSSL(nsecbunkerRelay, 443);
+    webSocket.onEvent(webSocketEvent);
+    break;
+  case WStype_CONNECTED:
+  {
+    socketDisconnectCount = 0;
+    Serial.printf("[WSc] Connected to %s\n", nsecbunkerRelay);
+    showMessage("Connected to " + String(nsecbunkerRelay), "Awaiting requests.");
+    // watch for 24133 kind events
+    String npubHexString(npubHex);
+    char *output = new char[64];
+    getRandom64ByteHex(output);
+
+    String req = "[\"REQ\", \"" + String(output) + "\",{\"kinds\":[24133],\"#p\":[\"" + npubHexString + "\"],\"limit\":0}";
+    req += ",{\"kinds\":[24134],\"#p\":[\"" + npubHexString + "\"],\"authors\":[\"" + String(adminNpubHex) + "\"],\"limit\":0}";
+    req += "]";
+    Serial.println("req is: " + req);
+    webSocket.sendTXT(req);
+    // delay(1000);
+    turnOffDisplay();
+    break;
+  }
+  case WStype_TEXT:
+  {
+    Serial.printf("[WSc] Got WS TEXT\n");
+    Serial.println("Payload is: " + String((char *)payload));
+    handleWebSocketMessage(NULL, payload, length);
+    // delay(1000);
+    turnOffDisplay();
+    break;
+  }
+  case WStype_BIN:
+    Serial.printf("[WSc] get binary length: %u\n", length);
+    break;
+  }
+}
+
+/**
+ * @brief Show the connection screen with QR code
+ *
+ */
+void showConnectionScreen()
+{
+  turnOnDisplay();
+  // create conneciton string using npubhex and relay and secretKey in format bunker://683211bd155c7b764e4b99ba263a151d81209be7a566a2bb1971dc1bbd3b715e?relay=wss://relay.nsecbunker.com&secret=faf68770560f9300346af4393746c7371cfed27bdd5db1155b3f2d358638772c
+  uint16_t charArraySize = 30 + strlen(npubHex) + strlen(nsecbunkerRelay) + strlen(secretKey);
+  char connectionUrl[charArraySize];
+  sprintf(connectionUrl, "bunker://%s?relay=wss://%s&secret=%s", npubHex, nsecbunkerRelay, secretKey);
+  // sprintf(connectionUrl, "%s", "TEST");
+  Serial.println("Connection URL is " + String(connectionUrl));
+
+  uint8_t qrVersion = 8;
+  uint8_t qrNumBlocks = 49; // num of blocks wide from table here https://github.com/ricmoo/QRCode
+  uint8_t pixelSize = floor(TFT_WIDTH / qrNumBlocks);
+
+  // calculate the size of the QR code
+  uint8_t qrPixelSize = qrNumBlocks * pixelSize;
+  // use this to centre on the display
+  uint16_t screenWidth = 320;
+  uint16_t screenHeight = 170;
+  uint16_t startX = TFT_HEIGHT / 2 - qrPixelSize / 2;
+  uint16_t startY = TFT_WIDTH / 2 - qrPixelSize / 2;
+
+  tft.fillScreen(TFT_WHITE);
+  QRCode qrcode;
+  uint8_t qrcodeData[qrcode_getBufferSize(qrVersion)];
+  qrcode_initText(&qrcode, qrcodeData, qrVersion, 0, connectionUrl);
+  // draw the QR code
+  for (uint8_t y = 0; y < qrcode.size; y++)
+  {
+    for (uint8_t x = 0; x < qrcode.size; x++)
+    {
+      if (qrcode_getModule(&qrcode, x, y))
       {
-        if (qrcode_getModule(&qrcode, x, y))
-        {
-          tft.fillRect(startX + x * pixelSize, startY + y * pixelSize, pixelSize, pixelSize, TFT_BLACK);
-        }
+        tft.fillRect(startX + x * pixelSize, startY + y * pixelSize, pixelSize, pixelSize, TFT_BLACK);
       }
     }
   }
+}
 
-  void setupButtons()
-  {
-    // short press
-    button1.attachClick([]()
-                        { 
-                        // print "Oh hai Mark on the screen for one second"
+void showButtonNumberPressed(int buttonNumber)
+{
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setTextSize(1);
+  tft.setCursor(0, TFT_WIDTH - 20);
+  tft.println("Button " + String(buttonNumber) + " pressed");
+  delay(1000);
+  tft.fillRect(0, TFT_WIDTH - 20, TFT_HEIGHT, 20, TFT_BLACK);
+}
+
+void setupSetupScreenButtons()
+{
+  button1.attachClick([]() {
+    showButtonNumberPressed(1);
+  });
+  button2.attachClick([]() {
+    showButtonNumberPressed(2);
+  });
+  button3.attachClick([]() {
+    showButtonNumberPressed(3);
+  });
+  button4.attachClick([]() {
+    showButtonNumberPressed(4);
+  });
+}
+
+void setupButtons()
+{
+  // short press
+  button1.attachClick([]()
+                      { 
                         showMessage("Pura vida", "");
                         delay(1000);
                         turnOffDisplay(); });
-    button2.attachClick([]()
-                        { 
-                        // print "Oh hai Mark on the screen for one second"
+  button2.attachClick([]()
+                      { 
                         showMessage("The everything app of\nfreedom", "");
                         delay(1000);
                         turnOffDisplay(); });
-    // show voltage on button 3 press
-    button3.attachClick([]()
-                        {
+  button3.attachClick([]()
+                      {
                         float voltage = getBatteryVoltage();
                         if(voltage > 4.3) {
                           showMessage("Device is charging or powered externally.", "Input voltage: " + String(voltage) + "V");  
@@ -952,102 +957,113 @@ void showWelcomeScreen()
                         }
                         delay(1000);
                         turnOffDisplay(); });
-    button1.attachLongPressStart([]()
-                                 { 
+  button1.attachLongPressStart([]()
+                               { 
                                 Serial.println("Button 1 long press start");
                                 showConnectionScreen(); });
-    // long press stop
-    button1.attachLongPressStop([]()
-                                {
+  // long press stop
+  button1.attachLongPressStop([]()
+                              {
                                 showMessage("Connected to " + String(nsecbunkerRelay), "Awaiting requests.");
                                 delay(100);
     turnOffDisplay(); });
+}
+
+void setup()
+{
+  delay(1000);
+  // Serial.begin(115200);
+  Serial.println("boot");
+
+  // turn on display when on battery
+  pinMode(15, OUTPUT);
+  digitalWrite(15, HIGH);
+
+  // set up reserved memory for the json document
+  serialisedJson = (char *)ps_malloc(EVENT_NOTE_SIZE);
+  eventDoc = DynamicJsonDocument(EVENT_NOTE_SIZE);
+  eventParamsDoc = DynamicJsonDocument(EVENT_PARAMS_DOC_SIZE);
+  nostr::initMemorySpace(EVENT_NOTE_SIZE, ENCRYPTED_MESSAGE_BIN_SIZE);
+
+  // convert nsec and npub bech32 to hexs
+  // nsecHex = nip19::decodeBech32ToHexString(nsec, "nsec");
+  // npubHex = nip19::decodeBech32ToHexString(npub, "npub");
+
+  // load screen
+  tft.init();
+  tft.setRotation(3);
+  tft.invertDisplay(true);
+
+  // tft.fillScreen(TFT_RED);
+  // tft.pushImage(TFT_HEIGHT / 2 - FACE_WIDTH / 2, TFT_WIDTH / 2 - FACE_HEIGHT / 2, FACE_WIDTH, FACE_HEIGHT, face, 0x066c);
+
+  if (!hasBeenSetup)
+  {
+    setupSetupScreenButtons();
+    showSetupScreen();
+    return;
   }
 
-  void setup()
+  setupButtons();
+  showWelcomeScreen();
+  delay(1000);
+
+  showMessage("Initialising", "Please wait...");
+  if (!SPIFFS.begin(true))
   {
-    delay(1000);
-    // Serial.begin(115200);
-    Serial.println("boot");
+    Serial.println("An error has occurred while mounting SPIFFS");
+    return;
+  }
+  loadConfigFromSPIFFS();
 
-    // turn on display when on battery
-    pinMode(15, OUTPUT);
-    digitalWrite(15, HIGH);
+  // connect to wifi
+  WiFi.begin(ssid, password);
+  WiFi.setAutoReconnect(true);
 
-    // set up reserved memory for the json document
-    serialisedJson = (char *)ps_malloc(EVENT_NOTE_SIZE);
-    eventDoc = DynamicJsonDocument(EVENT_NOTE_SIZE);
-    eventParamsDoc = DynamicJsonDocument(EVENT_PARAMS_DOC_SIZE);
-    nostr::initMemorySpace(EVENT_NOTE_SIZE, ENCRYPTED_MESSAGE_BIN_SIZE);
-
-    setupButtons();
-
-    // convert nsec and npub bech32 to hexs
-    // nsecHex = nip19::decodeBech32ToHexString(nsec, "nsec");
-    // npubHex = nip19::decodeBech32ToHexString(npub, "npub");
-
-    // load screen
-    tft.init();
-    tft.setRotation(3);
-    tft.invertDisplay(true);
-
-    // tft.fillScreen(TFT_RED);
-    // tft.pushImage(TFT_HEIGHT / 2 - FACE_WIDTH / 2, TFT_WIDTH / 2 - FACE_HEIGHT / 2, FACE_WIDTH, FACE_HEIGHT, face, 0x066c);
-    showWelcomeScreen();
-    delay(1000);
-
-    showMessage("Initialising", "Please wait...");
-    if (!SPIFFS.begin(true))
+  showMessage("Connecting to WiFi...", "");
+  unsigned long startWifiConnectionAttempt = millis();
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(300);
+    Serial.print(".");
+    if (millis() - startWifiConnectionAttempt > 5000)
     {
-      Serial.println("An error has occurred while mounting SPIFFS");
+      showMessage("Error", "Failed to connect to WiFi.");
+      ESP.restart();
       return;
     }
-    loadConfigFromSPIFFS();
-
-    // connect to wifi
-    WiFi.begin(ssid, password);
-    WiFi.setAutoReconnect(true);
-
-    showMessage("Connecting to WiFi...", "");
-    unsigned long startWifiConnectionAttempt = millis();
-    while (WiFi.status() != WL_CONNECTED)
-    {
-      delay(300);
-      Serial.print(".");
-      if (millis() - startWifiConnectionAttempt > 5000)
-      {
-        showMessage("Error", "Failed to connect to WiFi.");
-        ESP.restart();
-        return;
-      }
-    }
-
-    timeClient.begin();
-
-    // sendSignerStartedMsg();
-
-    showMessage("Connecting to", String(nsecbunkerRelay));
-    webSocket.beginSSL(nsecbunkerRelay, 443);
-    webSocket.onEvent(webSocketEvent);
-    webSocket.setReconnectInterval(5000);
   }
 
-  unsigned long lastPing = 0;
-  void loop()
+  timeClient.begin();
+
+  // sendSignerStartedMsg();
+
+  showMessage("Connecting to", String(nsecbunkerRelay));
+  webSocket.beginSSL(nsecbunkerRelay, 443);
+  webSocket.onEvent(webSocketEvent);
+  webSocket.setReconnectInterval(5000);
+}
+
+unsigned long lastPing = 0;
+void loop()
+{
+  if (!hasBeenSetup)
   {
-    // delay(100);
-    webSocket.loop();
-    // ping the relay every 10 seconds
-    if (millis() - lastPing > 10000)
-    {
-      lastPing = millis();
-      webSocket.sendPing();
-    }
-
-    timeClient.update();
-    unixTimestamp = timeClient.getEpochTime();
-
-    button1.tick();
-    button2.tick();
-    button3.tick();
+    return;
   }
+  // delay(100);
+  webSocket.loop();
+  // ping the relay every 10 seconds
+  if (millis() - lastPing > 10000)
+  {
+    lastPing = millis();
+    webSocket.sendPing();
+  }
+
+  timeClient.update();
+  unixTimestamp = timeClient.getEpochTime();
+
+  button1.tick();
+  button2.tick();
+  button3.tick();
+}
