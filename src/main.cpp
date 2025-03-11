@@ -930,7 +930,7 @@ void showButtonNumberPressed(int buttonNumber)
 {
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setTextSize(1);
-  tft.setCursor(0, TFT_WIDTH - 20);
+  tft.setCursor(10, TFT_WIDTH - 20);
   tft.println("Button " + String(buttonNumber) + " pressed");
   delay(500);
   tft.fillRect(0, TFT_WIDTH - 20, TFT_HEIGHT, 20, TFT_BLACK);
@@ -1055,10 +1055,20 @@ void handleConfigMode()
   tft.println("Go to nostrconnect.com");
   tft.setCursor(10, 70);
   tft.println("on a computer to setup");
+  tft.setCursor(10, 90);
+  tft.println("your device");
 
   Serial.println("Waiting for data from serial");
+
+  setupSetupScreenButtons();
+
   while (true)
   {
+    button1.tick();
+    button2.tick();
+    button3.tick();
+    button4.tick();
+    
     if (Serial.available())
     {
       String receivedData = Serial.readStringUntil('\n');
@@ -1079,13 +1089,14 @@ void handleConfigMode()
         saveToSPIFFS(receivedData);
       }
     }
-    delay(100);
   }
 }
 
-bool loadDeviceConfigFromSPIFFS() {
+bool loadDeviceConfigFromSPIFFS()
+{
   File file = SPIFFS.open(CONFIG_FILE_PATH, FILE_READ);
-  if (!file) {
+  if (!file)
+  {
     Serial.println("Failed to open config file for reading");
     return false;
   }
@@ -1094,7 +1105,8 @@ bool loadDeviceConfigFromSPIFFS() {
   DeserializationError error = deserializeJson(doc, file);
   file.close();
 
-  if (error) {
+  if (error)
+  {
     Serial.println("Failed to parse JSON: " + String(error.c_str()));
     return false;
   }
@@ -1107,8 +1119,9 @@ bool loadDeviceConfigFromSPIFFS() {
   npubStr = doc["public_key"] | "";
 
   // Check if any required fields are missing
-  if (ssidStr.isEmpty() || passwordStr.isEmpty() || relayStr.isEmpty() || 
-      nsecStr.isEmpty() || npubStr.isEmpty()) {
+  if (ssidStr.isEmpty() || passwordStr.isEmpty() || relayStr.isEmpty() ||
+      nsecStr.isEmpty() || npubStr.isEmpty())
+  {
     Serial.println("Missing required configuration fields");
     return false;
   }
@@ -1160,15 +1173,19 @@ void setup()
   }
 
   // Add this debug code
-  if (SPIFFS.exists(CONFIG_FILE_PATH)) {
+  if (SPIFFS.exists(CONFIG_FILE_PATH))
+  {
     Serial.println("Config file exists");
     File file = SPIFFS.open(CONFIG_FILE_PATH, "r");
-    if (file) {
+    if (file)
+    {
       Serial.println("Config file contents:");
       Serial.println(file.readString());
       file.close();
     }
-  } else {
+  }
+  else
+  {
     Serial.println("Config file does not exist");
   }
 
@@ -1177,7 +1194,6 @@ void setup()
   {
     Serial.println("Entering configuration mode");
     handleConfigMode();
-    setupSetupScreenButtons();
     return;
   }
 
@@ -1191,7 +1207,8 @@ void setup()
     Serial.println("An error has occurred while mounting SPIFFS");
     return;
   }
-  if (!loadDeviceConfigFromSPIFFS()) {
+  if (!loadDeviceConfigFromSPIFFS())
+  {
     Serial.println("Failed to load configuration");
     return;
   }
@@ -1245,4 +1262,5 @@ void loop()
   button1.tick();
   button2.tick();
   button3.tick();
+  button4.tick();
 }
