@@ -1,4 +1,4 @@
-# Nostr Connect Hardware Signer
+# Remote Nostr Signer
 
 ### ⚠️ **Alpha Version** ⚠️  
 This project is in its early stages, and contributions are welcome! We’d love help with testing, restructuring, and refactoring to make it better.
