@@ -72,7 +72,7 @@ const char *npubHex;
 const char *ssid;
 const char *password;
 const char *nsecbunkerRelay;
-const char *adminNpubHex = "40321dde7756769c8e509538d328af9712300fe5c36aa5960faaf880202f1a31";
+// const char *adminNpubHex = "40321dde7756769c8e509538d328af9712300fe5c36aa5960faaf880202f1a31";
 const char *secretKey = "faf68770560f9300346af4393746c7371cfed27bdd5db1155b3f2d358638772c"; // this must be a 64 byte hex
 
 /**
@@ -770,45 +770,45 @@ bool isJson(String str)
   return true;
 }
 
-void handleConfigRequestEvent(uint8_t *data)
-{
-  String message = nostr::nip04Decrypt(nsecHex, String((char *)data));
-  cleanMessage(message);
-  // message can be "get_config" or some JSON. if it's json then it's a config update
-  if (message == "get_config")
-  {
-    String configJson = getSerialisedConfigDoc();
-    showMessage("Configuration request", "received");
-    String configData = nostr::getEncryptedDm(nsecHex, npubHex, adminNpubHex, 24134, unixTimestamp, configJson);
-    webSocket.sendTXT(configData);
-    showMessage("Configuration sent to relay", "");
-  }
-  else
-  {
-    try
-    {
-      if (!isJson(message))
-      {
-        showMessage("Error", "Config update rejected. JSON is invalid.");
-        return;
-      }
-      showMessage("Config update", "received");
-      updateConfigDoc(message);
-      // delay(500);
-      showMessage("Config updated", message);
-      // delay(500);
-      String configJson = getSerialisedConfigDoc();
-      String configData = nostr::getEncryptedDm(nsecHex, npubHex, adminNpubHex, 24134, unixTimestamp, configJson);
-      Serial.println("Config data is: " + configData);
-      webSocket.sendTXT(configData);
-      showMessage("Updated config sent", "");
-    }
-    catch (const std::exception &e)
-    {
-      Serial.println("Error updating config: " + String(e.what()));
-    }
-  }
-}
+// void handleConfigRequestEvent(uint8_t *data)
+// {
+//   String message = nostr::nip04Decrypt(nsecHex, String((char *)data));
+//   cleanMessage(message);
+//   // message can be "get_config" or some JSON. if it's json then it's a config update
+//   if (message == "get_config")
+//   {
+//     String configJson = getSerialisedConfigDoc();
+//     showMessage("Configuration request", "received");
+//     String configData = nostr::getEncryptedDm(nsecHex, npubHex, adminNpubHex, 24134, unixTimestamp, configJson);
+//     webSocket.sendTXT(configData);
+//     showMessage("Configuration sent to relay", "");
+//   }
+//   else
+//   {
+//     try
+//     {
+//       if (!isJson(message))
+//       {
+//         showMessage("Error", "Config update rejected. JSON is invalid.");
+//         return;
+//       }
+//       showMessage("Config update", "received");
+//       updateConfigDoc(message);
+//       // delay(500);
+//       showMessage("Config updated", message);
+//       // delay(500);
+//       String configJson = getSerialisedConfigDoc();
+//       String configData = nostr::getEncryptedDm(nsecHex, npubHex, adminNpubHex, 24134, unixTimestamp, configJson);
+//       Serial.println("Config data is: " + configData);
+//       webSocket.sendTXT(configData);
+//       showMessage("Updated config sent", "");
+//     }
+//     catch (const std::exception &e)
+//     {
+//       Serial.println("Error updating config: " + String(e.what()));
+//     }
+//   }
+// }
 
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
 {
@@ -818,11 +818,11 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
   {
     handleSigningRequestEvent(data);
   }
-  // if data includes EVENT and 4 kind, decrypt it
-  else if (strstr((char *)data, "EVENT") && strstr((char *)data, "24134"))
-  {
-    handleConfigRequestEvent(data);
-  }
+  // // if data includes EVENT and 4 kind, decrypt it
+  // else if (strstr((char *)data, "EVENT") && strstr((char *)data, "24134"))
+  // {
+  //   handleConfigRequestEvent(data);
+  // }
 }
 
 uint8_t socketDisconnectCount = 0;
@@ -855,7 +855,7 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
     getRandom64ByteHex(output);
 
     String req = "[\"REQ\", \"" + String(output) + "\",{\"kinds\":[24133],\"#p\":[\"" + npubHexString + "\"],\"limit\":0}";
-    req += ",{\"kinds\":[24134],\"#p\":[\"" + npubHexString + "\"],\"authors\":[\"" + String(adminNpubHex) + "\"],\"limit\":0}";
+    // req += ",{\"kinds\":[24134],\"#p\":[\"" + npubHexString + "\"],\"authors\":[\"" + String(adminNpubHex) + "\"],\"limit\":0}";
     req += "]";
     Serial.println("req is: " + req);
     webSocket.sendTXT(req);
