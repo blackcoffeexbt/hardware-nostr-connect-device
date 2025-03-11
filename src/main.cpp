@@ -1,4 +1,7 @@
 #include <Arduino.h>
+#include "FS.h"
+#include "SPIFFS.h"
+
 #include <esp_adc_cal.h>
 #include "Bitcoin.h"
 #include "Hash.h"
@@ -10,8 +13,6 @@
 #include <NTPClient.h>
 #include <TFT_eSPI.h>
 #include <OneButton.h>
-#include <SPIFFS.h>
-#include <FS.h>
 #include "media/face.h"
 #include <qrcode.h>
 #include "config.h"
@@ -22,10 +23,9 @@
 #include "nostr-config.h"
 
 #define PIN_BAT_VOLT 4
+#define CONFIG_FILE_PATH "/data.json"
 
 TFT_eSPI tft = TFT_eSPI();
-
-bool hasBeenSetup = false;
 
 OneButton button1(PIN_BUTTON_1, true);
 OneButton button2(PIN_BUTTON_2, true);
@@ -60,6 +60,20 @@ struct DocumentData
 
   DocumentData(String t, uint16_t k, String c, unsigned long ts) : tags(t), kind(k), content(c), timestamp(ts) {}
 };
+
+String ssidStr;
+String passwordStr;
+String relayStr;
+String nsecStr;
+String npubStr;
+
+const char *nsecHex;
+const char *npubHex;
+const char *ssid;
+const char *password;
+const char *nsecbunkerRelay;
+const char *adminNpubHex = "40321dde7756769c8e509538d328af9712300fe5c36aa5960faaf880202f1a31";
+const char *secretKey = "faf68770560f9300346af4393746c7371cfed27bdd5db1155b3f2d358638772c"; // this must be a 64 byte hex
 
 /**
  * @brief Get the Battery Voltage in Volts
@@ -909,8 +923,8 @@ void showConnectionScreen()
 
 /**
  * @brief Used for testing hardware buttons
- * 
- * @param buttonNumber 
+ *
+ * @param buttonNumber
  */
 void showButtonNumberPressed(int buttonNumber)
 {
@@ -924,22 +938,18 @@ void showButtonNumberPressed(int buttonNumber)
 
 /**
  * @brief Set up screen buttons for the setup screen
- * 
+ *
  */
 void setupSetupScreenButtons()
 {
-  button1.attachClick([]() {
-    showButtonNumberPressed(1);
-  });
-  button2.attachClick([]() {
-    showButtonNumberPressed(2);
-  });
-  button3.attachClick([]() {
-    showButtonNumberPressed(3);
-  });
-  button4.attachClick([]() {
-    showButtonNumberPressed(4);
-  });
+  button1.attachClick([]()
+                      { showButtonNumberPressed(1); });
+  button2.attachClick([]()
+                      { showButtonNumberPressed(2); });
+  button3.attachClick([]()
+                      { showButtonNumberPressed(3); });
+  button4.attachClick([]()
+                      { showButtonNumberPressed(4); });
 }
 
 void setupButtons()
@@ -978,15 +988,159 @@ void setupButtons()
     turnOffDisplay(); });
 }
 
+/**
+ * @brief Save JSON data to SPIFFS
+ *
+ * @param jsonData The JSON string to save
+ */
+void saveToSPIFFS(String jsonData)
+{
+  File file = SPIFFS.open(CONFIG_FILE_PATH, FILE_WRITE);
+  if (!file)
+  {
+    Serial.println("Failed to open file for writing");
+    return;
+  }
+  file.print(jsonData);
+  file.close();
+  Serial.println("JSON saved to SPIFFS!");
+}
+
+/**
+ * @brief Get a config value from SPIFFS
+ *
+ * @param key The key to look up
+ * @return String The value or empty string if not found
+ */
+String getConfigValue(const char *key)
+{
+  File file = SPIFFS.open(CONFIG_FILE_PATH, FILE_READ);
+  if (!file)
+  {
+    Serial.println("Failed to open config file for reading");
+    return "";
+  }
+
+  StaticJsonDocument<512> doc;
+  DeserializationError error = deserializeJson(doc, file);
+  file.close();
+
+  if (error)
+  {
+    Serial.println("Failed to parse JSON: " + String(error.c_str()));
+    return "";
+  }
+
+  if (!doc.containsKey(key))
+  {
+    Serial.println("Key not found in config");
+    return "";
+  }
+
+  return doc[key].as<String>();
+}
+
+/**
+ * @brief Handle configuration mode
+ */
+void handleConfigMode()
+{
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextSize(2);
+  tft.setCursor(10, 10);
+  tft.setTextColor(TFT_PINK, TFT_BLACK);
+  tft.println("Setup Mode");
+  tft.setCursor(10, 50);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.println("Go to nostrconnect.com");
+  tft.setCursor(10, 70);
+  tft.println("on a computer to setup");
+
+  Serial.println("Waiting for data from serial");
+  while (true)
+  {
+    if (Serial.available())
+    {
+      String receivedData = Serial.readStringUntil('\n');
+
+      if (receivedData == "get_config")
+      {
+        File file = SPIFFS.open(CONFIG_FILE_PATH, FILE_READ);
+        if (file)
+        {
+          Serial.println(file.readString());
+          file.close();
+        }
+      }
+      else
+      {
+        Serial.println("Reading data from serial");
+        Serial.println("Received: " + receivedData);
+        saveToSPIFFS(receivedData);
+      }
+    }
+    delay(100);
+  }
+}
+
+bool loadDeviceConfigFromSPIFFS() {
+  File file = SPIFFS.open(CONFIG_FILE_PATH, FILE_READ);
+  if (!file) {
+    Serial.println("Failed to open config file for reading");
+    return false;
+  }
+
+  StaticJsonDocument<512> doc;
+  DeserializationError error = deserializeJson(doc, file);
+  file.close();
+
+  if (error) {
+    Serial.println("Failed to parse JSON: " + String(error.c_str()));
+    return false;
+  }
+
+  // Store values in String objects to maintain the lifetime of the char data
+  ssidStr = doc["ssid"] | "";
+  passwordStr = doc["password"] | "";
+  relayStr = doc["relay_uri"] | "";
+  nsecStr = doc["private_key"] | "";
+  npubStr = doc["public_key"] | "";
+
+  // Check if any required fields are missing
+  if (ssidStr.isEmpty() || passwordStr.isEmpty() || relayStr.isEmpty() || 
+      nsecStr.isEmpty() || npubStr.isEmpty()) {
+    Serial.println("Missing required configuration fields");
+    return false;
+  }
+
+  // Update the global variables
+  ssid = ssidStr.c_str();
+  password = passwordStr.c_str();
+  nsecbunkerRelay = relayStr.c_str();
+  nsecHex = nsecStr.c_str();
+  npubHex = npubStr.c_str();
+
+  Serial.println("Configuration loaded successfully");
+  Serial.println("SSID: " + String(ssid));
+  Serial.println("Password: " + String(password));
+  Serial.println("Relay: " + String(nsecbunkerRelay));
+  Serial.println("Private Key: " + String(nsecHex));
+  Serial.println("Public Key: " + String(npubHex));
+
+  return true;
+}
+
 void setup()
 {
   delay(1000);
-  // Serial.begin(115200);
+  Serial.begin(115200);
   Serial.println("boot");
 
   // turn on display when on battery
   pinMode(15, OUTPUT);
   digitalWrite(15, HIGH);
+
+  pinMode(PIN_BUTTON_1, INPUT_PULLUP);
 
   // set up reserved memory for the json document
   serialisedJson = (char *)ps_malloc(EVENT_NOTE_SIZE);
@@ -994,22 +1148,36 @@ void setup()
   eventParamsDoc = DynamicJsonDocument(EVENT_PARAMS_DOC_SIZE);
   nostr::initMemorySpace(EVENT_NOTE_SIZE, ENCRYPTED_MESSAGE_BIN_SIZE);
 
-  // convert nsec and npub bech32 to hexs
-  // nsecHex = nip19::decodeBech32ToHexString(nsec, "nsec");
-  // npubHex = nip19::decodeBech32ToHexString(npub, "npub");
-
   // load screen
   tft.init();
   tft.setRotation(3);
   tft.invertDisplay(true);
 
-  // tft.fillScreen(TFT_RED);
-  // tft.pushImage(TFT_HEIGHT / 2 - FACE_WIDTH / 2, TFT_WIDTH / 2 - FACE_HEIGHT / 2, FACE_WIDTH, FACE_HEIGHT, face, 0x066c);
-
-  if (!hasBeenSetup)
+  if (!SPIFFS.begin(true))
   {
+    Serial.println("An error has occurred while mounting SPIFFS");
+    return;
+  }
+
+  // Add this debug code
+  if (SPIFFS.exists(CONFIG_FILE_PATH)) {
+    Serial.println("Config file exists");
+    File file = SPIFFS.open(CONFIG_FILE_PATH, "r");
+    if (file) {
+      Serial.println("Config file contents:");
+      Serial.println(file.readString());
+      file.close();
+    }
+  } else {
+    Serial.println("Config file does not exist");
+  }
+
+  // If no config file or button 1 is pressed or config is empty, enter configuration mode
+  if (!SPIFFS.exists(CONFIG_FILE_PATH) || digitalRead(PIN_BUTTON_1) == LOW || getConfigValue("ssid").isEmpty())
+  {
+    Serial.println("Entering configuration mode");
+    handleConfigMode();
     setupSetupScreenButtons();
-    showSetupScreen();
     return;
   }
 
@@ -1023,9 +1191,16 @@ void setup()
     Serial.println("An error has occurred while mounting SPIFFS");
     return;
   }
-  loadConfigFromSPIFFS();
+  if (!loadDeviceConfigFromSPIFFS()) {
+    Serial.println("Failed to load configuration");
+    return;
+  }
 
   // connect to wifi
+  Serial.println("Connecting to WiFi...");
+  // with
+  Serial.println("SSID: " + String(ssid));
+  Serial.println("Password: " + String(password));
   WiFi.begin(ssid, password);
   WiFi.setAutoReconnect(true);
 
@@ -1056,11 +1231,6 @@ void setup()
 unsigned long lastPing = 0;
 void loop()
 {
-  if (!hasBeenSetup)
-  {
-    return;
-  }
-  // delay(100);
   webSocket.loop();
   // ping the relay every 10 seconds
   if (millis() - lastPing > 10000)
