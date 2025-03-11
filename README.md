@@ -34,5 +34,5 @@ Feel free to **use**, **review**, and **improve** the project. Pull requests are
 - [ ] Implement a menu system
 - [ ] Add a PIN code unlock on startup
 - [ ] Create a web-based installer
-- [ ] Develop a web configurator
+- [x] Develop a web configurator
 - [ ] Build a notification service for remote ACK of signing requests
