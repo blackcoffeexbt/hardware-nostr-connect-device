@@ -73,7 +73,17 @@ const char *ssid;
 const char *password;
 const char *nsecbunkerRelay;
 // const char *adminNpubHex = "40321dde7756769c8e509538d328af9712300fe5c36aa5960faaf880202f1a31";
-const char *secretKey = "faf68770560f9300346af4393746c7371cfed27bdd5db1155b3f2d358638772c"; // this must be a 64 byte hex
+char secretKey[65];
+
+// generate a random 64 byte hex
+void refreshSecretKey() {
+  // generate a random 64 byte hex
+  for (int i = 0; i < 64; i++) {
+    secretKey[i] = "0123456789abcdef"[esp_random() % 16];
+  }
+  secretKey[64] = '\0';
+  Serial.println("secretKey updated to: " + String(secretKey));
+}
 
 /**
  * @brief Get the Battery Voltage in Volts
@@ -280,12 +290,11 @@ bool promptUserShouldAllowClientNpub(String requestingNpub)
  */
 void addAuthorisedClientPubKey(const char *clientPubKey)
 {
+  refreshSecretKey();
   String authorisedClients = getConfigProperty("authorised_clients");
-  // Serial.println("Adding to authorisedClients: " + authorisedClients);
 
   if (authorisedClients.indexOf(clientPubKey) != -1)
   {
-    // Serial.println("Client already authorised");
     return;
   }
   // add the client to the list of authorised clients with a pipe separator
@@ -313,7 +322,7 @@ bool checkClientIsAuthorised(const char *clientPubKey, const char *secret)
   }
   else if (secretTrimmed == secretKey)
   {
-    Serial.println("Secret key matches. Connecting.");
+    Serial.println("Secret key matches. Authorising client.");
     addAuthorisedClientPubKey(clientPubKey);
     return true;
   }
@@ -892,6 +901,7 @@ void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
  */
 void showConnectionScreen()
 {
+  refreshSecretKey();
   turnOnDisplay();
   // create conneciton string using npubhex and relay and secretKey in format bunker://683211bd155c7b764e4b99ba263a151d81209be7a566a2bb1971dc1bbd3b715e?relay=wss://relay.nsecbunker.com&secret=faf68770560f9300346af4393746c7371cfed27bdd5db1155b3f2d358638772c
   uint16_t charArraySize = 30 + strlen(npubHex) + strlen(nsecbunkerRelay) + strlen(secretKey);
@@ -1142,11 +1152,6 @@ bool loadDeviceConfigFromSPIFFS()
   npubHex = npubStr.c_str();
 
   Serial.println("Configuration loaded successfully");
-  Serial.println("SSID: " + String(ssid));
-  Serial.println("Password: " + String(password));
-  Serial.println("Relay: " + String(nsecbunkerRelay));
-  Serial.println("Private Key: " + String(nsecHex));
-  Serial.println("Public Key: " + String(npubHex));
 
   return true;
 }
@@ -1156,6 +1161,8 @@ void setup()
   delay(1000);
   Serial.begin(115200);
   Serial.println("boot");
+
+  refreshSecretKey();
 
   // turn on display when on battery
   pinMode(15, OUTPUT);
@@ -1223,13 +1230,11 @@ void setup()
 
   // connect to wifi
   Serial.println("Connecting to WiFi...");
-  // with
-  Serial.println("SSID: " + String(ssid));
-  Serial.println("Password: " + String(password));
+
   WiFi.begin(ssid, password);
   WiFi.setAutoReconnect(true);
 
-  showMessage("Connecting to WiFi...", "");
+  showMessage("Connecting to WiFi", String(ssid));
   unsigned long startWifiConnectionAttempt = millis();
   while (WiFi.status() != WL_CONNECTED)
   {
