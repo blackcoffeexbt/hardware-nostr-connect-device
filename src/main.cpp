@@ -228,30 +228,24 @@ void showMessage(String message, String additional)
   tft.setTextSize(2);
   tft.setCursor(10, 30);
   tft.println(message);
-  // Serial.println(message);
   tft.setCursor(10, 80);
   tft.setTextSize(2);
   tft.println(additional);
-  // Serial.println(additional);
 }
 
 // check if the client is authorised
 bool isClientNpubAuthorised(const char *clientPubKey)
 {
   String authorisedClients = getConfigProperty("authorised_clients");
-  // Serial.println("Authorised clients: " + authorisedClients);
   if (authorisedClients == "")
   {
     return false;
   }
 
-  // Serial.println("Checking if client is authorised |" + String(clientPubKey) + "|");
   if (authorisedClients.indexOf(clientPubKey) != -1)
   {
-    // Serial.println("Client is authorised");
     return true;
   }
-  // Serial.println("Client is not authorised");
   return false;
 }
 
@@ -375,12 +369,9 @@ size_t getFreeMemoryCapacity(String message)
 // handleConnect function with DynamicJsonDocument passed by reference
 void handleConnect(DynamicJsonDocument &doc, String &requestingNpub)
 {
-  // showMessage("Request to connect", "received");
-
   String requestId = doc["id"];
 
   String secret = doc["params"][1];
-  Serial.println("secret from client is: " + secret);
 
   if (!checkClientIsAuthorised(requestingNpub.c_str(), secret.c_str()))
   {
@@ -513,7 +504,6 @@ void handleSignEvent(DynamicJsonDocument &doc, char const *requestingPubKey)
   utilities::stopTimer("showMessage");
 
   String secret = doc["params"][1];
-  // Serial.println("secret from client is: " + secret);
 
   if (!checkClientIsAuthorised(requestingPubKey, secret.c_str()))
   {
@@ -522,14 +512,8 @@ void handleSignEvent(DynamicJsonDocument &doc, char const *requestingPubKey)
 
   // Debug this to see why tags arent being parsed
   String docParams = doc["params"][0];
-  // Serial.println("docParams is: " + docParams);
   DocumentData docData = parseDocumentData(doc["params"][0].as<const char *>());
   utilities::stopTimer("parseDocumentData");
-  // print all docData values
-  // _logToSerialWithTitle("tags is: ", docData.tags);
-  // _logToSerialWithTitle("kind is: ", String(docData.kind));
-  // _logToSerialWithTitle("content is: ", docData.content);
-  // _logToSerialWithTitle("timestamp is: ", String(docData.timestamp));
 
   uint16_t kind = docData.kind;
   unsigned long timestamp = docData.timestamp;
@@ -695,16 +679,6 @@ void handleNip04Decrypt(DynamicJsonDocument &doc, const char *requestingNpub)
   // now we need to send the decrypted message back to the client
   String requestId = doc["id"];
 
-  // for (int i = 0; i < decryptedMessage.length(); i++)
-  // {
-  //   // Cast each character to an integer to see its ASCII value
-  //   Serial.print(i); // Print the character position
-  //   Serial.print(": '");
-  //   Serial.print(decryptedMessage[i]); // Print the character itself if it's printable
-  //   Serial.print("' (ASCII: ");
-  //   Serial.print((int)decryptedMessage[i]); // Print the ASCII value
-  //   Serial.println(")");
-  // }
   cleanMessage(decryptedMessage);
   decryptedMessage.trim();
   // log decryptedMessage and show any ascii characters
@@ -767,8 +741,6 @@ void handleSigningRequestEvent(uint8_t *data)
   }
   else
   {
-    Serial.println("default");
-    // print the data
     Serial.println("data is: " + String((char *)data));
   }
   utilities::stopTimer("handleSigningRequestEvent");
@@ -996,7 +968,6 @@ void setupButtons()
                         turnOffDisplay(); });
   button1.attachLongPressStart([]()
                                { 
-                                Serial.println("Button 1 long press start");
                                 showConnectionScreen(); });
   // long press stop
   button1.attachLongPressStop([]()
@@ -1021,7 +992,6 @@ void saveToSPIFFS(String jsonData)
   }
   file.print(jsonData);
   file.close();
-  Serial.println("JSON saved to SPIFFS!");
 }
 
 /**
@@ -1076,8 +1046,6 @@ void handleConfigMode()
   tft.setCursor(10, 90);
   tft.println("your device");
 
-  Serial.println("Waiting for data from serial");
-
   setupSetupScreenButtons();
 
   while (true)
@@ -1102,7 +1070,6 @@ void handleConfigMode()
       }
       else
       {
-        Serial.println("Reading data from serial");
         Serial.println("Received: " + receivedData);
         saveToSPIFFS(receivedData);
       }
