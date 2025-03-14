@@ -304,8 +304,20 @@ void addAuthorisedClientPubKey(const char *clientPubKey)
  */
 bool checkClientIsAuthorised(const char *clientPubKey, const char *secret)
 {
+  String secretTrimmed = String(secret);
+  secretTrimmed.trim();
+
   bool isClientNpubAllowed = isClientNpubAuthorised(clientPubKey);
-  if (!isClientNpubAllowed)
+  if(isClientNpubAllowed) {
+    return true;
+  }
+  else if (secretTrimmed == secretKey)
+  {
+    Serial.println("Secret key matches. Connecting.");
+    addAuthorisedClientPubKey(clientPubKey);
+    return true;
+  }
+  else if (!isClientNpubAllowed)
   {
     bool isClientAllowed = promptUserShouldAllowClientNpub(clientPubKey);
     if (!isClientAllowed)
@@ -314,10 +326,11 @@ bool checkClientIsAuthorised(const char *clientPubKey, const char *secret)
       return false;
     }
     addAuthorisedClientPubKey(clientPubKey);
+    return true;
   }
-  else if (!isClientNpubAllowed && (secret != secretKey))
+  else if (!isClientNpubAllowed)
   {
-    Serial.println("Secret key does not match. Prompting user.");
+    Serial.println("Prompting user.");
     bool isClientAllowed = promptUserShouldAllowClientNpub(clientPubKey);
     if (isClientAllowed)
     {
@@ -328,12 +341,7 @@ bool checkClientIsAuthorised(const char *clientPubKey, const char *secret)
       return false;
     }
   }
-  else if (!isClientNpubAllowed && (secret == secretKey))
-  {
-    Serial.println("Secret key matches. Connecting.");
-    addAuthorisedClientPubKey(clientPubKey);
-  }
-  return true;
+  return false;
 }
 
 /**

@@ -1,5 +1,6 @@
 {
     "files.associations": {
+        "*.embeddedhtml": "html",
         "system_error": "cpp",
         "vector": "cpp",
         "memory": "cpp",
@@ -18,6 +19,7 @@
         "tuple": "cpp",
         "type_traits": "cpp",
         "utility": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "new": "cpp"
     }
 }
