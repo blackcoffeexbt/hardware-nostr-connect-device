@@ -1148,10 +1148,15 @@ void setup()
   tft.setRotation(3);
   tft.invertDisplay(true);
 
-  if (!SPIFFS.begin(true))
+  if (!SPIFFS.begin(false)) // Try mounting without formatting first
   {
-    Serial.println("An error has occurred while mounting SPIFFS");
-    return;
+    showMessage("Formatting storage", "Please wait...");
+    if (!SPIFFS.begin(true)) // Format and mount
+    {
+      Serial.println("An error has occurred while mounting SPIFFS");
+      showMessage("Storage error", "Please restart device");
+      return;
+    }
   }
 
   // Add this debug code
@@ -1184,10 +1189,15 @@ void setup()
   delay(1000);
 
   showMessage("Initialising", "Please wait...");
-  if (!SPIFFS.begin(true))
+  if (!SPIFFS.begin(false)) // Try mounting without formatting first
   {
-    Serial.println("An error has occurred while mounting SPIFFS");
-    return;
+    showMessage("Formatting storage", "Please wait...");
+    if (!SPIFFS.begin(true)) // Format and mount
+    {
+      Serial.println("An error has occurred while mounting SPIFFS");
+      showMessage("Storage error", "Please restart device");
+      return;
+    }
   }
   if (!loadDeviceConfigFromSPIFFS())
   {
