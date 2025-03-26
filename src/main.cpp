@@ -494,7 +494,7 @@ void showSetupScreen()
 
 void showWelcomeScreen()
 {
-  animateTyping("PURA VIDA!");
+  animateTyping("GM!");
 }
 
 void handleSignEvent(DynamicJsonDocument &doc, char const *requestingPubKey)
