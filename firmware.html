@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ESP32 Firmware Uploader</title>
+</head>
+<body>
+  <h1>Upload Firmware to ESP32</h1>
+  <input type="file" id="firmwareFile" accept=".bin">
+  <button id="uploadButton">Upload Firmware</button>
+
+  <script type="module">
+    // Import esptool-js module (adjust the path as needed)
+    import { EspLoader } from './esptool-js.js';
+
+    async function flashFirmware(firmwareData) {
+      try {
+        // Request access to the serial port
+        const port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+
+        // Create an instance of the loader and connect to the ESP32
+        const loader = new EspLoader(port);
+        await loader.connect();
+
+        // Flash the firmware (the API may require additional parameters such as flash address)
+        await loader.flashFirmware(firmwareData);
+        console.log('Firmware upload complete.');
+      } catch (error) {
+        console.error('Error flashing firmware:', error);
+      }
+    }
+
+    document.getElementById('uploadButton').addEventListener('click', async () => {
+      const fileInput = document.getElementById('firmwareFile');
+      if (fileInput.files.length === 0) {
+        alert('Please select a firmware file.');
+        return;
+      }
+      const file = fileInput.files[0];
+      const firmwareData = await file.arrayBuffer();
+      await flashFirmware(firmwareData);
+    });
+  </script>
+</body>
+</html>
