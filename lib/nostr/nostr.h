@@ -25,6 +25,8 @@ namespace nostr
 
     String nip04Decrypt(const char *privateKeyHex, String serialisedJson);
 
+    String nip44Decrypt(const char *privateKeyHex, String serialisedJson);
+
     String decryptData(byte key[32], byte iv[16], byte* encryptedMessageBin, int byteSize);
 
     String decryptNip04Ciphertext(String &cipherText, String privateKeyHex, String senderPubKeyHex);

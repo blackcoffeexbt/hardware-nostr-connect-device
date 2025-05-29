@@ -1,4 +1,5 @@
 #include "nostr.h"
+#include "nip44/nip44.h"
 
 namespace nostr
 {
@@ -160,8 +161,6 @@ namespace nostr
         return std::make_pair(senderPubKeyHex, content);
     }
 
-    // define a function that returns senderPubKeyHex and content
-
     String nip04Decrypt(const char *privateKeyHex, String serialisedJson)
     {
         _startTimer("nip04Decrypt: nip04Decrypt");
@@ -208,6 +207,17 @@ namespace nostr
         _logToSerialWithTitle("senderPublicKey.toString() is", senderPublicKey.toString());
 
         return decryptNip04Ciphertext(content, privateKeyHex, senderPubKeyHex);
+    }
+
+    String nip44Decrypt(const char *privateKeyHex, String serialisedJson)
+    {
+        _startTimer("nip44Decrypt: nip44Decrypt");
+        auto result = getPubKeyAndContent(serialisedJson);
+        String senderPubKeyHex = result.first;
+        String content = result.second;
+        _stopTimer("nip44Decrypt: Got result from getPubKeyAndContent");
+
+        return executeDecryptMessageNip44(content, privateKeyHex, senderPubKeyHex);
     }
 
     /**

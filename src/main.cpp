@@ -704,8 +704,17 @@ void handleSigningRequestEvent(uint8_t *data)
   utilities::startTimer("handleSigningRequestEvent");
   String requestingPubKey = nostr::getSenderPubKeyHex(String((char *)data));
   // utilities::stopTimer("nostr::getSenderPubKeyHex");
+  // does the data include a ?iv ?
+  String message = "";
+  if (String((char *)data).indexOf("?iv=") != -1) {
+    Serial.println("data includes ?iv= so it's a NIP04 message");
+    message = nostr::nip04Decrypt(nsecHex, String((char *)data));
+  } else {
+    Serial.println("data has no ?iv= so it's a nip44 message");
+    message = nostr::nip44Decrypt(nsecHex, String((char *)data));
+    Serial.println("message is: " + message);
+  }
 
-  String message = nostr::nip04Decrypt(nsecHex, String((char *)data));
   // utilities::stopTimer("nostr::nip04Decrypt");
   // _logToSerialWithTitle("Decrypted message is: ", message);
   // _logToSerialWithTitle("message is: ", message);
