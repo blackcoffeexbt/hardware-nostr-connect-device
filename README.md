@@ -30,9 +30,11 @@ Feel free to **use**, **review**, and **improve** the project. Pull requests are
 
 ### Roadmap & To-Do List
 
+- [x] Implement NIP44 support
+- [x] Create a web-based installer - nostrconnect.com
+- [x] Develop a web configurator - nostrconnect.com
+- [ ] Implement get_relays support
 - [ ] Add a stats screen (e.g., notes signed, time online)
 - [ ] Implement a menu system
 - [ ] Add a PIN code unlock on startup
-- [ ] Create a web-based installer
-- [x] Develop a web configurator
-- [ ] Build a notification service for remote ACK of signing requests
+- [ ] Build a notification service for remote ACK of signing requests?
