@@ -1,5 +1,6 @@
 #include "chacha20.h"
 #include "helpers.h"
+#include "nip44.h"
 
 #include <gmp-ino.h>
 #include <bootloader_random.h>

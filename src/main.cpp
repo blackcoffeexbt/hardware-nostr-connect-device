@@ -20,7 +20,7 @@
 
 #include "nostr.h"
 #include "nip19.h"
-#include "nip44/nip44.ino"
+#include "nip44/nip44.h"
 #include "nostr-config.h"
 
 #include <gmp-ino.h>
