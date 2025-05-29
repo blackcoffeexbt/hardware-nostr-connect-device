@@ -20,6 +20,7 @@
         "type_traits": "cpp",
         "utility": "cpp",
         "cmath": "cpp",
-        "new": "cpp"
+        "new": "cpp",
+        "random": "cpp"
     }
 }

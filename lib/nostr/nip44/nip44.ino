@@ -1,4 +1,11 @@
-#include "502_chacha20.h"
+#include "chacha20.h"
+#include "helpers.h"
+
+#include <gmp-ino.h>
+#include <bootloader_random.h>
+#include <mbedtls/base64.h>
+#include <mbedtls/md.h>
+#include <vector>
 
 // NIP-44 encryption/decryption implementation
 
@@ -455,3 +462,66 @@ void hmac_sha256(const uint8_t* key, size_t key_len,
     mbedtls_md_hmac_finish(&ctx, hmac);
     mbedtls_md_free(&ctx);
 } 
+
+String executeEncryptMessageNip44(String data, String privateKeyHex, String thirdPartyPublicKeyHex) {
+    if (data == "") return "";
+    
+    thirdPartyPublicKeyHex.trim();
+    thirdPartyPublicKeyHex.toLowerCase();
+    
+    if(!isValidHexKey(thirdPartyPublicKeyHex)) {
+      logInfo("Encrypt Message error: Invalid 3rd party public key.");
+      return "";
+    }
+
+    String sharedSecretHex = generateSharedSecret(privateKeyHex, thirdPartyPublicKeyHex);
+    
+    // Get the content as everything after the first space
+    String content = data;
+    content.trim();
+    
+    String encryptedMessage = encryptMessageNip44(content, sharedSecretHex);
+    
+    // log the encrypted message
+    if (encryptedMessage == "") {
+        logInfo("Encrypt NIP-44 failed: Invalid message or shared secret");
+    } else {
+        logInfo("Encrypted message: " + encryptedMessage);
+    }
+
+    logInfo("Encrypt NIP-44: " + content.substring(0, 16) + "...");
+    
+    return encryptedMessage;
+}
+
+String executeDecryptMessageNip44(String data, String privateKeyHex, String thirdPartyPublicKeyHex) {
+    logInfo("Full command data length: " + String(data.length()));
+    
+    if (data == "") "";
+    
+    // Get the shared secret as the 3rd party public key
+    logInfo("Public key length: " + String(thirdPartyPublicKeyHex.length()));
+    
+    thirdPartyPublicKeyHex.trim();
+    thirdPartyPublicKeyHex.toLowerCase();
+    
+    if(!isValidHexKey(thirdPartyPublicKeyHex)) {
+      logInfo("Decrypt Message Error: Invalid 3rd party public key.");
+      return "";
+    }
+
+    String sharedSecretHex = generateSharedSecret(privateKeyHex, thirdPartyPublicKeyHex);
+    
+    // Get the encrypted content
+    String encryptedContent = data;
+    encryptedContent.trim();
+    
+    logInfo("Encrypted content: " + encryptedContent);
+    logInfo("Encrypted content length: " + String(encryptedContent.length()));
+
+    String decryptedMessage = decryptMessageNip44(encryptedContent, sharedSecretHex);
+
+    logInfo("Decrypt NIP-44: " + decryptedMessage.substring(0, 16) + "...");
+    
+    return decryptedMessage;
+}

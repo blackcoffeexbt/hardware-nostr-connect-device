@@ -1,4 +1,5 @@
-#include "502_chacha20.h"
+#include "chacha20.h"
+#include "helpers.h"
 
 #define ROTL32(v, n) (((v) << (n)) | ((v) >> (32 - (n))))
 

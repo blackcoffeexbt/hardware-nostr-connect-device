@@ -20,7 +20,18 @@
 
 #include "nostr.h"
 #include "nip19.h"
+#include "nip44/nip44.ino"
 #include "nostr-config.h"
+
+#include <gmp-ino.h>
+
+#include <mbedtls/base64.h>
+#include <mbedtls/md.h>
+#include <mbedtls/chacha20.h>
+
+#include <bootloader_random.h>
+#include <vector>
+#include <map>
 
 #define PIN_BAT_VOLT 4
 #define CONFIG_FILE_PATH "/data.json"
@@ -739,6 +750,16 @@ void handleSigningRequestEvent(uint8_t *data)
   {
     handleNip04Decrypt(eventDoc, requestingPubKey.c_str());
   }
+  else if (method == "nip44_encrypt")
+  {
+    Serial.println("REQUESTED nip44_encrypt");
+    showMessage("Requested nip44_encrypt", "Not implemented yet");
+  }
+  else if (method == "nip44_decrypt")
+  {
+    Serial.println("REQUESTED nip44_decrypt");
+    showMessage("Requested nip44_decrypt", "Not implemented yet");
+  }
   else
   {
     Serial.println("data is: " + String((char *)data));
@@ -1150,7 +1171,7 @@ void setup()
 
   if (!SPIFFS.begin(false)) // Try mounting without formatting first
   {
-    showMessage("Formatting storage", "Please wait...");
+    showMessage("Formatting storage", "This may take a while. Please wait...");
     if (!SPIFFS.begin(true)) // Format and mount
     {
       Serial.println("An error has occurred while mounting SPIFFS");
