@@ -220,6 +220,16 @@ namespace nostr
         return executeDecryptMessageNip44(content, privateKeyHex, senderPubKeyHex);
     }
 
+    String nip44Encrypt(const char *privateKeyHex, String serialisedJson)
+    {
+        _startTimer("nip44Encrypt: nip44Encrypt");
+        auto result = getPubKeyAndContent(serialisedJson);
+        String senderPubKeyHex = result.first;
+        String content = result.second;
+        _stopTimer("nip44Encrypt: Got result from getPubKeyAndContent");
+        return executeEncryptMessageNip44(content, privateKeyHex, senderPubKeyHex);
+    }
+
     /**
      * @brief Get a Note object
      *
@@ -452,13 +462,22 @@ namespace nostr
      * @param kind
      * @param timestamp
      * @param content
+     * @param type "nip44" or "nip04"
      * @return String
      */
-    String getEncryptedDm(char const *privateKeyHex, char const *pubKeyHex, char const *recipientPubKeyHex, uint16_t kind, unsigned long timestamp, String content)
+    String getEncryptedDm(char const *privateKeyHex, char const *pubKeyHex, char const *recipientPubKeyHex, uint16_t kind, unsigned long timestamp, String content, String type)
     {
-        _startTimer("getEncryptedDm");
-        String encryptedMessageBase64 = getCipherText(privateKeyHex, recipientPubKeyHex, content);
-        _stopTimer("get cipher text");
+        String encryptedMessageBase64 = "";
+        if (type == "nip44") {
+            _startTimer("getEncrypted NIP44 Dm");
+            encryptedMessageBase64 = executeEncryptMessageNip44(content, privateKeyHex, recipientPubKeyHex);
+            Serial.println("NIP44 encrypted message: " + encryptedMessageBase64);
+            _stopTimer("executeEncryptMessageNip44");
+        } else {
+            _startTimer("getEncrypted NIP44 Dm");
+            encryptedMessageBase64 = getCipherText(privateKeyHex, recipientPubKeyHex, content);
+            _stopTimer("getCipherText");
+        }
 
         String message = nostr::getSerialisedEncryptedDmArray(pubKeyHex, recipientPubKeyHex, kind, timestamp, encryptedMessageBase64);
         _stopTimer("get serialised encrypted dm array");

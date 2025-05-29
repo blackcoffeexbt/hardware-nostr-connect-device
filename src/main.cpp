@@ -393,7 +393,7 @@ void handleConnect(DynamicJsonDocument &doc, String &requestingNpub)
   _logToSerialWithTitle("requestingNpub is: ", requestingNpub);
   // send ack
   String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"ack\"}";
-  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub.c_str(), 24133, unixTimestamp, responseMsg);
+  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub.c_str(), 24133, unixTimestamp, responseMsg, "nip44");
 
   webSocket.sendTXT(dm);
 
@@ -541,7 +541,7 @@ void handleSignEvent(DynamicJsonDocument &doc, char const *requestingPubKey)
   char *responseMsgChar = (char *)ps_malloc(responseMsgCharSize);
   sprintf(responseMsgChar, "{\"id\":\"%s\",\"result\":\"%s\"}", requestId.c_str(), signedEvent.c_str());
   // _logToSerialWithTitle("responseMsg is: ", responseMsg);
-  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingPubKey, 24133, timestamp, String(responseMsgChar));
+  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingPubKey, 24133, timestamp, String(responseMsgChar), "nip44");
   utilities::stopTimer("nostr::getEncryptedDm");
   free(responseMsgChar);
   // _logToSerialWithTitle("dm is: ", dm);
@@ -569,7 +569,7 @@ void signerStartedConnectedEvent(WStype_t type, uint8_t *payload, size_t length)
     showMessage("Connected to relay.damus.io relay", "Sending connected message");
     Serial.printf("[WSc] Connected to %s\n", nsecbunkerRelay);
     String message = "Signer started";
-    String dm = nostr::getEncryptedDm(nsecHex, npubHex, npubHex, 4, unixTimestamp, message);
+    String dm = nostr::getEncryptedDm(nsecHex, npubHex, npubHex, 4, unixTimestamp, message, "nip44");
     webSocketTemp.sendTXT(dm);
     break;
   }
@@ -607,7 +607,7 @@ void handlePing(DynamicJsonDocument &doc, const char *requestingNpub)
   }
   String requestId = doc["id"];
   String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"pong\"}";
-  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
+  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg, "nip44");
   webSocket.sendTXT(dm);
 }
 
@@ -627,7 +627,7 @@ void handleGetRelays(DynamicJsonDocument &doc, const char *requestingNpub)
   // response should be serialised JSON {<relay_url>: {read: <boolean>, write: <boolean>}}
   String relays = "{\"" + String(nsecbunkerRelay) + "\": {\"read\": true, \"write\": true}}";
   String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":" + relays + "}";
-  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
+  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg, "nip44");
   webSocket.sendTXT(dm);
 }
 
@@ -645,7 +645,7 @@ void handleGetPublicKey(DynamicJsonDocument &doc, const char *requestingNpub)
   }
   String requestId = doc["id"];
   String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + npubHex + "\"}";
-  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
+  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg, "nip44");
   webSocket.sendTXT(dm);
 }
 
@@ -668,7 +668,7 @@ void handleNip04Encrypt(DynamicJsonDocument &doc, const char *requestingNpub)
   // send the encrypted message back to the client
   String requestId = doc["id"];
   String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + encryptedMessage + "\"}";
-  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
+  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg, "nip04");
   webSocket.sendTXT(dm);
 }
 
@@ -694,7 +694,7 @@ void handleNip04Decrypt(DynamicJsonDocument &doc, const char *requestingNpub)
   decryptedMessage.trim();
   // log decryptedMessage and show any ascii characters
   String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + decryptedMessage + "\"}";
-  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg);
+  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg, "nip04");
   webSocket.sendTXT(dm);
   // showMessage("Decrypted:", decryptedMessage);
 }

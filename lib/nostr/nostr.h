@@ -27,6 +27,8 @@ namespace nostr
 
     String nip44Decrypt(const char *privateKeyHex, String serialisedJson);
 
+    String nip44Encrypt(const char *privateKeyHex, String serialisedJson);
+
     String decryptData(byte key[32], byte iv[16], byte* encryptedMessageBin, int byteSize);
 
     String decryptNip04Ciphertext(String &cipherText, String privateKeyHex, String senderPubKeyHex);
@@ -41,7 +43,7 @@ namespace nostr
 
     String getSerialisedEncryptedDmArray(char const *pubKeyHex, char const *recipientPubKeyHex, uint16_t kind, int timestamp, String &encryptedMessageWithIv);
 
-    String getEncryptedDm(char const *privateKeyHex, char const *pubKeyHex, char const *recipientPubKeyHex, uint16_t kind, unsigned long timestamp, String content);
+    String getEncryptedDm(char const *privateKeyHex, char const *pubKeyHex, char const *recipientPubKeyHex, uint16_t kind, unsigned long timestamp, String content, String type);
 
 
 }
