@@ -612,26 +612,6 @@ void handlePing(DynamicJsonDocument &doc, const char *requestingNpub)
 }
 
 /**
- * @brief Send the relays to the client
- *
- * @param doc
- */
-void handleGetRelays(DynamicJsonDocument &doc, const char *requestingNpub)
-{
-  showMessage("Request for relays received", "Sending relays");
-  if (!isClientNpubAuthorised(requestingNpub))
-  {
-    return;
-  }
-  String requestId = doc["id"];
-  // response should be serialised JSON {<relay_url>: {read: <boolean>, write: <boolean>}}
-  String relays = "{\"" + String(nsecbunkerRelay) + "\": {\"read\": true, \"write\": true}}";
-  String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":" + relays + "}";
-  String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub, 24133, unixTimestamp, responseMsg, "nip44");
-  webSocket.sendTXT(dm);
-}
-
-/**
  * @brief Send the public key to the client
  *
  * @param doc
@@ -742,10 +722,6 @@ void handleSigningRequestEvent(uint8_t *data)
   else if (method == "ping")
   {
     handlePing(eventDoc, requestingPubKey.c_str());
-  }
-  else if (method == "get_relays")
-  {
-    handleGetRelays(eventDoc, requestingPubKey.c_str());
   }
   else if (method == "get_public_key")
   {
