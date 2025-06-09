@@ -386,18 +386,28 @@ void handleConnect(DynamicJsonDocument &doc, String &requestingNpub)
 
   if (!checkClientIsAuthorised(requestingNpub.c_str(), secret.c_str()))
   {
+    showMessage("Client is not authorised", "Rejected!");
     return;
   }
 
   _logToSerialWithTitle("requestId is: ", requestId);
   _logToSerialWithTitle("requestingNpub is: ", requestingNpub);
   // send ack
-  String responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"ack\"}";
+  String responseMsg = "";
+  // if secret is not empty, respond with result = "secret", else "ack"
+  if(secret.length() > 0) {
+    responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"" + secret + "\"}";
+  } else {
+    responseMsg = "{\"id\":\"" + requestId + "\",\"result\":\"ack\"}";
+  }
+  
+  _logToSerialWithTitle("responseMsg is: ", responseMsg);
   String dm = nostr::getEncryptedDm(nsecHex, npubHex, requestingNpub.c_str(), 24133, unixTimestamp, responseMsg, "nip44");
+  _logToSerialWithTitle("dm is: ", dm);
 
   webSocket.sendTXT(dm);
 
-  // showMessage("Client requested connection", "Acknowledged.");
+  showMessage("Client requested connection", "Acknowledged.");
 }
 
 DocumentData parseDocumentData(const String &paramString)
